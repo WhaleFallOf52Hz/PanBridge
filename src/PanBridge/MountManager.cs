@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.ComponentModel;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -18,7 +19,12 @@ public sealed class MountManager : IDisposable
     private string? controlPassword;
     private DriveAccess access;
     private readonly string cacheDirectory;
-    public MountManager(string? cacheDirectory = null) => this.cacheDirectory = cacheDirectory ?? Path.Combine(AppPaths.Data, "cache");
+    private readonly string volumeName;
+    public MountManager(string? cacheDirectory = null, string volumeName = "PanBridge")
+    {
+        this.cacheDirectory = cacheDirectory ?? Path.Combine(AppPaths.Data, "cache");
+        this.volumeName = volumeName;
+    }
     public string? Drive { get; private set; }
     public bool IsMounted => process is { HasExited: false } && Drive is not null && Directory.Exists(Drive + "\\");
     public static bool DriverInstalled => Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WinFsp") is not null || Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\WinFsp") is not null;
@@ -47,7 +53,7 @@ public sealed class MountManager : IDisposable
         await obscure.WaitForExitAsync();
         if (obscure.ExitCode != 0 || password.Length == 0) throw new IOException("Could not prepare mount credentials.");
         var start = new ProcessStartInfo(AppPaths.Rclone) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = AppPaths.Root };
-        foreach (var arg in new[] { "mount", "jbox:", drive, "--config", "NUL", "--network-mode", "--vfs-cache-mode", "full", "--vfs-write-back", "1s", "--vfs-cache-max-size", "1G", "--cache-dir", cacheDirectory, "--dir-cache-time", "30s", "--volname", "PanBridge", "--log-level", "ERROR", "--rc" }) start.ArgumentList.Add(arg);
+        foreach (var arg in new[] { "mount", "jbox:", drive, "--config", "NUL", "--network-mode", "--vfs-cache-mode", "full", "--vfs-write-back", "1s", "--vfs-cache-max-size", "1G", "--cache-dir", cacheDirectory, "--dir-cache-time", "30s", "--volname", volumeName, "--log-level", "ERROR", "--rc" }) start.ArgumentList.Add(arg);
         if (requestedAccess == DriveAccess.ReadOnly) start.ArgumentList.Add("--read-only");
         access = requestedAccess;
         var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start();
@@ -69,7 +75,7 @@ public sealed class MountManager : IDisposable
         for (int attempt = 0; attempt < 100; attempt++)
         {
             if (process.HasExited) { Disconnect(); throw new CloudAccessException("挂载失败，请检查 WinFsp 是否正确安装，并尝试其他盘符。"); }
-            if (Directory.Exists(drive + "\\")) return;
+            if (Directory.Exists(drive + "\\")) { ShellDriveNotifications.Added(drive); return; }
             await Task.Delay(200);
         }
         Disconnect(); throw new CloudAccessException("等待挂载超时，请重试。");
@@ -110,16 +116,22 @@ public sealed class MountManager : IDisposable
     }
     public async Task DisconnectAsync()
     {
-        if (process is null || process.HasExited) { Disconnect(); return; }
+        if (process is null || process.HasExited)
+        {
+            if (Drive is not null) await ShellDriveNotifications.WaitForRemovalAsync(Drive);
+            Disconnect(); return;
+        }
         await WaitForUploadsAsync();
         try { using var result = await ControlAsync("core/quit"); } catch (HttpRequestException) { }
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
         try { await process.WaitForExitAsync(timeout.Token); }
         catch (OperationCanceledException) { throw new CloudAccessException("挂载服务尚未退出，请稍后重试。"); }
+        if (Drive is not null) await ShellDriveNotifications.WaitForRemovalAsync(Drive);
         Disconnect();
     }
     public void Disconnect()
     {
+        string? removedDrive = Drive;
         if (process is not null)
         {
             try { if (!process.HasExited) { process.Kill(true); process.WaitForExit(5000); } } catch { }
@@ -127,6 +139,7 @@ public sealed class MountManager : IDisposable
         }
         Drive = null;
         controlAddress = null; controlPassword = null;
+        if (removedDrive is not null) { try { ShellDriveNotifications.RemovedIfDetached(removedDrive); } catch (Win32Exception) { } }
     }
     public void Dispose() => Disconnect();
 }

@@ -18,7 +18,7 @@ public static class IntegrationTest
         string folder = "PanBridge-check-" + Guid.NewGuid().ToString("N")[..12];
         string? localFolder = null;
         using var backend = new TboxBackend();
-        using var mount = new MountManager(Path.Combine(AppPaths.Data, "integration-cache-" + Guid.NewGuid().ToString("N")[..8]));
+        using var mount = new MountManager(Path.Combine(AppPaths.Data, "integration-cache-" + Guid.NewGuid().ToString("N")[..8]), "PanBridge-Test");
         bool cleanup = false;
         try
         {

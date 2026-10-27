@@ -10,7 +10,7 @@
     <Product>交云桥（PanBridge）</Product>
     <Description>交大云盘登录与本地磁盘挂载客户端</Description>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>

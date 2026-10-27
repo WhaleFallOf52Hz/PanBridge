@@ -10,6 +10,12 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Contains("--drive-lifecycle-test"))
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            Shutdown(await DriveLifecycleTest.RunAsync());
+            return;
+        }
         if (e.Args.Contains("--integration-test"))
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;

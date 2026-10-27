@@ -37,7 +37,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 -Package
 产物：
 
 - `dist/PanBridge/PanBridge.exe`
-- `dist/PanBridge-0.1.0-win-x64.zip`
+- `dist/PanBridge-0.1.1-win-x64.zip`
 
 便携包自动排除个人登录数据、缓存及测试结果。更新正在运行的程序前，请从托盘菜单退出，以便等待文件上传完成。
 
@@ -54,6 +54,14 @@ dist\PanBridge\PanBridge.exe --integration-test
 ```
 
 真实集成检查需要已保存的有效登录。它会在云盘新建随机命名的专用测试目录，验证挂盘、上传、不同大小与相同大小的覆盖修改、重命名、删除和正常断开，然后清理自身创建的测试文件。不会修改已有文件，结果写入 `integration-test.json`。
+
+打开资源管理器“此电脑”窗口后，可运行只读盘符生命周期回归检查：
+
+```powershell
+dist\PanBridge\PanBridge.exe --drive-lifecycle-test
+```
+
+此检查使用独立的临时只读盘符和卷名，不写入云盘文件，也不会断开主客户端的盘符。它确认临时盘符出现在已有资源管理器窗口中，再验证断开后系统设备映射和窗口中的图标都已消失。结果写入 `drive-lifecycle-test.json`。
 
 ## 上游组件
 

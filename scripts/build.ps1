@@ -48,7 +48,7 @@ if ($Package) {
     try {
         Get-ChildItem -LiteralPath $output -Recurse -File | Where-Object {
             $relative = $_.FullName.Substring($output.Length + 1)
-            $relative -notmatch '^data[\\/]' -and $_.Extension -notin @('.pdb','.log','.pid') -and $_.Name -notin @('self-test.json','integration-test.json','background-test.json')
+            $relative -notmatch '^data[\\/]' -and $_.Extension -notin @('.pdb','.log','.pid') -and $_.Name -notin @('self-test.json','integration-test.json','background-test.json','drive-lifecycle-test.json')
         } | ForEach-Object {
             $relative = 'PanBridge/' + $_.FullName.Substring($output.Length + 1).Replace('\','/')
             [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($packageArchive, $_.FullName, $relative, [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null
