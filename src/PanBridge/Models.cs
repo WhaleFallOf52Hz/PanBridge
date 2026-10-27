@@ -8,7 +8,7 @@ namespace PanBridge;
 public record SavedCookie(string Name, string Value, string Domain, string Path, bool Secure, bool HttpOnly, bool Session, DateTime Expires, int SameSite);
 public record AuthSession(string UserToken, DateTimeOffset SavedAt, List<SavedCookie> Cookies);
 public enum DriveAccess { ReadOnly, NoDelete, Full }
-public record DriveSettings(string DriveLetter = "J:", bool AutoMount = false, DriveAccess Access = DriveAccess.Full);
+public record DriveSettings(string DriveLetter = "J:", bool AutoMount = false, DriveAccess Access = DriveAccess.Full, bool OpenAfterMount = false, bool ShowTrayHint = true);
 
 public static class AppPaths
 {
@@ -50,7 +50,7 @@ public static class SafeError
         CloudAccessException => ex.Message,
         Microsoft.Web.WebView2.Core.WebView2RuntimeNotFoundException => "未检测到 WebView2 Runtime，请安装 Microsoft Edge WebView2 运行时。",
         System.Security.Cryptography.CryptographicException => "本地凭证无法解密，请重新登录。",
-        HttpRequestException => "网络连接失败，请检查网络；若直接从 Codex 启动，请改为在资源管理器中双击应用。",
+        HttpRequestException => "网络连接失败，请检查网络、代理和系统时间后重试。",
         TaskCanceledException => "请求超时，请检查网络后重试。",
         _ => "操作失败（" + ex.GetType().Name + "），请重试。"
     };

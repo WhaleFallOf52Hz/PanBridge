@@ -26,9 +26,22 @@ public sealed class MountManager : IDisposable
         this.volumeName = volumeName;
     }
     public string? Drive { get; private set; }
-    public bool IsMounted => process is { HasExited: false } && Drive is not null && Directory.Exists(Drive + "\\");
-    public static bool DriverInstalled => Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WinFsp") is not null || Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\WinFsp") is not null;
-    public static List<string> AvailableDrives() => Enumerable.Range('D', 'Z' - 'D' + 1).Select(c => $"{(char)c}:").Where(d => !Directory.Exists(d + "\\") && !DriveInfo.GetDrives().Any(v => v.Name.StartsWith(d, StringComparison.OrdinalIgnoreCase))).ToList();
+    // Query the local device table; rendering status must not wait for network filesystem I/O.
+    public bool IsMounted => process is { HasExited: false } && Drive is not null && ShellDriveNotifications.DeviceExists(Drive);
+    public static bool DriverInstalled
+    {
+        get
+        {
+            using var native = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WinFsp");
+            using var redirected = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\WinFsp");
+            return native is not null || redirected is not null;
+        }
+    }
+    public static List<string> AvailableDrives()
+    {
+        var occupied = DriveInfo.GetDrives().Select(d => d.Name[..2]).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return Enumerable.Range('D', 'Z' - 'D' + 1).Select(c => $"{(char)c}:").Where(d => !occupied.Contains(d) && !ShellDriveNotifications.DeviceExists(d)).ToList();
+    }
     public static async Task<bool> InstallDriverAsync()
     {
         if (!File.Exists(AppPaths.Installer)) throw new CloudAccessException("缺少 WinFsp 安装包，请完整解压应用后重试。");
@@ -89,6 +102,12 @@ public sealed class MountManager : IDisposable
         using var response = await client.SendAsync(request);
         response.EnsureSuccessStatusCode();
         return JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync());
+    }
+    public async Task<TransferStatus> ReadTransferStatusAsync()
+    {
+        using var stats = await ControlAsync("vfs/stats");
+        var disk = stats.RootElement.GetProperty("diskCache");
+        return new(disk.GetProperty("uploadsQueued").GetInt64(), disk.GetProperty("uploadsInProgress").GetInt64(), disk.GetProperty("erroredFiles").GetInt64());
     }
     public async Task WaitForUploadsAsync()
     {

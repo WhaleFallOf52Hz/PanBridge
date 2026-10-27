@@ -14,6 +14,7 @@ public sealed class TboxBackend : IDisposable
     private Process? process;
     private DriveAccess access = DriveAccess.ReadOnly;
     public Uri? Address { get; private set; }
+    public bool IsRunning => process is { HasExited: false };
     private readonly HttpClient client = new(new HttpClientHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(45) };
     public async Task SetAccessAsync(DriveAccess requested)
     {
@@ -71,6 +72,13 @@ public sealed class TboxBackend : IDisposable
             throw new CloudAccessException($"云盘目录读取失败（HTTP {(int)response.StatusCode}）。");
         }
         return ParseListing(await response.Content.ReadAsByteArrayAsync());
+    }
+    public async Task<bool> ProbeAsync()
+    {
+        if (!IsRunning || Address is null) return false;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var response = await client.GetAsync(Address, timeout.Token);
+        return response.StatusCode == HttpStatusCode.Unauthorized;
     }
     public static int ParseListing(byte[] body)
     {
