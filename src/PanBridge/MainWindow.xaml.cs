@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     private bool loaded;
     private int entries;
     private readonly Forms.NotifyIcon tray;
+    private readonly System.Drawing.Icon trayIcon;
     private bool quit;
     private bool trayHintShown;
     private readonly EventWaitHandle showEvent;
@@ -33,7 +34,10 @@ public partial class MainWindow : Window
         ModeBadge.Text = AccessLabel;
         if (DrivePicker.Items.Contains(settings.DriveLetter)) DrivePicker.SelectedItem = settings.DriveLetter;
         AutoMountCheck.IsChecked = settings.AutoMount;
-        tray = new Forms.NotifyIcon { Icon = System.Drawing.SystemIcons.Application, Text = "交云桥", Visible = true };
+        using (var stream = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/PanBridge.ico")).Stream)
+        using (var sourceIcon = new System.Drawing.Icon(stream, Forms.SystemInformation.SmallIconSize))
+            trayIcon = (System.Drawing.Icon)sourceIcon.Clone();
+        tray = new Forms.NotifyIcon { Icon = trayIcon, Text = "交云桥", Visible = true };
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("显示主窗口", null, (_, _) => Dispatcher.Invoke(ShowMain));
         menu.Items.Add("打开云盘", null, (_, _) => Dispatcher.Invoke(() => OpenClick(this, new RoutedEventArgs())));
@@ -48,7 +52,7 @@ public partial class MainWindow : Window
         DrivePicker.SelectionChanged += (_, _) => SaveSettings();
         Loaded += async (_, _) => { loaded = true; await RestoreAsync(); };
         Closing += OnClosing;
-        Closed += (_, _) => { showRegistration.Unregister(null); showEvent.Dispose(); mount.Dispose(); backend.Dispose(); tray.Dispose(); AppPaths.WriteStatus("stopped"); Application.Current.Shutdown(); };
+        Closed += (_, _) => { showRegistration.Unregister(null); showEvent.Dispose(); mount.Dispose(); backend.Dispose(); tray.Dispose(); trayIcon.Dispose(); AppPaths.WriteStatus("stopped"); Application.Current.Shutdown(); };
         StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) Hide(); };
     }
     private void RefreshDrives()

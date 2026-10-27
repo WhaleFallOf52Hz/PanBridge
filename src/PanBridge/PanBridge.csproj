@@ -7,10 +7,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>PanBridge</AssemblyName>
+    <ApplicationIcon>Assets\PanBridge.ico</ApplicationIcon>
     <Product>交云桥（PanBridge）</Product>
     <Description>交大云盘登录与本地磁盘挂载客户端</Description>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
@@ -18,5 +19,7 @@
     <Using Remove="System.Drawing" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+    <Resource Include="Assets\PanBridge.ico" />
+    <Resource Include="Assets\PanBridge.png" />
   </ItemGroup>
 </Project>

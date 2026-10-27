@@ -37,7 +37,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 -Package
 产物：
 
 - `dist/PanBridge/PanBridge.exe`
-- `dist/PanBridge-0.1.1-win-x64.zip`
+- `dist/PanBridge-0.1.2-win-x64.zip`
 
 便携包自动排除个人登录数据、缓存及测试结果。更新正在运行的程序前，请从托盘菜单退出，以便等待文件上传完成。
 
@@ -66,3 +66,7 @@ dist\PanBridge\PanBridge.exe --drive-lifecycle-test
 ## 上游组件
 
 TboxWebdav 的版本、来源和本地补丁记录在 `vendor/TboxWebdav/UPSTREAM.json`。它作为独立进程运行，保留 GPL-2.0 许可证，修改后的对应源码随运行包提供。其他组件见 `src/PanBridge/THIRD-PARTY-NOTICES.txt`。
+
+## 图标设计源
+
+应用图标使用手工绘制的 [SVG](src/PanBridge/Assets/PanBridge.svg)，PNG 与多尺寸 ICO 均由它导出。曲线、配色与导出方式见[设计说明](src/PanBridge/Assets/design-notes.md)。

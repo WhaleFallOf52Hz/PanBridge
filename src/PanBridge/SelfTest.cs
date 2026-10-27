@@ -1,6 +1,8 @@
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Windows;
+using System.Windows.Media.Imaging;
 
 namespace PanBridge;
 
@@ -28,6 +30,14 @@ public static class SelfTest
         try { TboxBackend.ParseListing(Encoding.UTF8.GetBytes("<html/>")); } catch (CloudAccessException) { rejected = true; }
         if (!rejected) throw new Exception("Invalid listing accepted.");
         if (JsonSerializer.Deserialize<DriveSettings>("{\"DriveLetter\":\"J:\",\"AutoMount\":false}")?.Access != DriveAccess.Full) throw new Exception("Upgrade default access is incorrect.");
-        File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "self-test.json"), JsonSerializer.Serialize(new { Success = true, Checks = new[] { "cookie_names", "cookie_expiry", "cookie_domain", "dpapi_roundtrip", "no_plaintext_token", "webdav_xml", "invalid_xml_rejected" } }, new JsonSerializerOptions { WriteIndented = true }));
+        using (var png = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/PanBridge.png")).Stream)
+        {
+            var frame = BitmapDecoder.Create(png, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+            if (frame.PixelWidth != 1024 || frame.PixelHeight != 1024) throw new Exception("Application icon has unexpected dimensions.");
+        }
+        using (var ico = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/PanBridge.ico")).Stream)
+        using (var icon = new System.Drawing.Icon(ico, new System.Drawing.Size(16, 16)))
+            if (icon.Width != 16 || icon.Height != 16) throw new Exception("Small tray icon could not be decoded.");
+        File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "self-test.json"), JsonSerializer.Serialize(new { Success = true, Checks = new[] { "cookie_names", "cookie_expiry", "cookie_domain", "dpapi_roundtrip", "no_plaintext_token", "webdav_xml", "invalid_xml_rejected", "app_icon_resources", "small_tray_icon" } }, new JsonSerializerOptions { WriteIndented = true }));
     }
 }

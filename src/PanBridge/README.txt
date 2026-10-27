@@ -1,4 +1,4 @@
-交云桥（PanBridge）0.1.1 — Windows x64
+交云桥（PanBridge）0.1.2 — Windows x64
 
 完整解压后，双击 PanBridge.exe。首次启动自动弹出交大官方登录页；在页面中完成账号登录与验证码，客户端会自动获取 USER_TOKEN 并验证目录访问，无需打开开发者工具复制 Cookie。
 

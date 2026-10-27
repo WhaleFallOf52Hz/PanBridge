@@ -1,7 +1,11 @@
-<Window x:Class="PanBridge.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="交云桥 · PanBridge" Width="790" Height="590" MinWidth="740" MinHeight="560" WindowStartupLocation="CenterScreen" Background="#F3F6F6" FontFamily="Microsoft YaHei UI" Foreground="{StaticResource Ink}">
+<Window x:Class="PanBridge.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="交云桥 · PanBridge" Icon="Assets/PanBridge.ico" Width="790" Height="590" MinWidth="740" MinHeight="560" WindowStartupLocation="CenterScreen" Background="#F3F6F6" FontFamily="Microsoft YaHei UI" Foreground="{StaticResource Ink}">
   <Grid Margin="36,28">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <StackPanel><TextBlock Text="PANBRIDGE" FontSize="11" FontWeight="SemiBold" Foreground="#70867D"/><TextBlock Text="交云桥，打开即用。" FontSize="28" FontWeight="SemiBold" Margin="0,9,0,0"/><TextBlock Text="自动登录 · 本地挂载 · 按需读取" Foreground="{StaticResource Muted}" FontSize="13" Margin="0,9,0,0"/></StackPanel>
+    <Grid>
+      <Grid.ColumnDefinitions><ColumnDefinition Width="72"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Image x:Name="BrandIcon" Source="Assets/PanBridge.png" Width="60" Height="60" HorizontalAlignment="Left" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
+      <StackPanel Grid.Column="1"><TextBlock Text="PANBRIDGE" FontSize="11" FontWeight="SemiBold" Foreground="#70867D"/><TextBlock Text="交云桥，打开即用。" FontSize="28" FontWeight="SemiBold" Margin="0,9,0,0"/><TextBlock Text="自动登录 · 本地挂载 · 按需读取" Foreground="{StaticResource Muted}" FontSize="13" Margin="0,9,0,0"/></StackPanel>
+    </Grid>
     <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="26" Margin="0,25,0,22">
       <StackPanel>
         <DockPanel><TextBlock Text="连接状态" FontSize="14" FontWeight="SemiBold"/><Border DockPanel.Dock="Right" HorizontalAlignment="Right" Background="#EAF1EC" CornerRadius="4" Padding="10,4"><TextBlock x:Name="ModeBadge" Text="完整读写" Foreground="#3D725A" FontSize="11"/></Border></DockPanel>

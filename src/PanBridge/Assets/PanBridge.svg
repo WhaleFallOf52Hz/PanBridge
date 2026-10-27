@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <title>PanBridge — 交云桥</title>
+  <desc>A white ribbon bridge with a mint fold on a solid cobalt rounded square.</desc>
+  <defs>
+    <path id="bridge" d="
+      M 128 676
+      C 128 660 136 648 152 640
+      C 254 589 339 470 436 394
+      C 533 318 571 312 628 312
+      C 685 312 714 330 752 368
+      C 790 406 848 483 868 537
+      C 876 558.6 880 586 880 616
+      V 704
+      C 880 730.51 858.51 752 832 752
+      H 776
+      C 749.49 752 728 730.51 728 704
+      V 566
+      C 728 518 715 484 690 461
+      C 665 438 641 431 610 438
+      C 548 452 516 483 470 534
+      C 424 585 385 641 338 689
+      C 291 737 256 752 208 752
+      H 170
+      C 146.804 752 128 733.196 128 710
+      Z" />
+    <clipPath id="bridge-clip"><use href="#bridge" /></clipPath>
+  </defs>
+  <rect x="56" y="56" width="912" height="912" rx="184" fill="#2868E8" />
+  <use href="#bridge" fill="#FAFCFF" />
+  <path d="
+    M 610 438
+    C 669 394 710 364 752 368
+    C 790 406 848 483 868 537
+    C 829 480 772 447 718 438
+    C 674 431 641 431 610 438
+    Z" fill="#76D8CF" clip-path="url(#bridge-clip)" />
+</svg>

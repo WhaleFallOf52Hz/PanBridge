@@ -8,6 +8,8 @@
 **/data/
 **/browser-profile/
 **/cache/
+**/__pycache__/
+*.py[cod]
 .vs/
 .idea/
 .env
