@@ -1,0 +1,22 @@
+PanBridge prototype — third-party components
+
+TboxWebdav v1.0.1 (separate process)
+https://github.com/1357310795/TboxWebdav
+GNU GPL version 2. License bundled in runtime/tbox/LICENSE.txt.
+Source is available in the vendor/TboxWebdav directory; published tag v1.0.1 corresponds to commit 4537e22adf241158783fe26661b8081f9bc45e94. This bundle includes a local patch to version the download cache by file ETag, CRC, size and modification time, and reject truncated cached blocks. Modified source is included in runtime/tbox/source.zip.
+
+rclone v1.75.2 (separate process)
+https://github.com/rclone/rclone
+MIT license. Distribution documentation/license files accompany runtime/rclone.
+
+WinFsp 2.1 installer
+https://github.com/winfsp/winfsp/releases/tag/v2.1
+The original signed installer is bundled unchanged. WinFsp license terms are included in its installer and upstream project. Installing it changes the Windows filesystem driver environment and requires the user's Windows administrator consent.
+
+Microsoft WebView2 SDK
+https://www.nuget.org/packages/Microsoft.Web.WebView2/
+Microsoft licensing terms apply. WebView2 Runtime is installed separately on Windows and is not redistributed in this package.
+
+Microsoft .NET 8 Windows Desktop runtime and System.Security.Cryptography.ProtectedData
+https://github.com/dotnet/runtime
+Runtime license and third-party notices are included in the self-contained .NET distribution.

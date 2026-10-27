@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/1357310795/TboxWebdav",
+  "tag": "v1.0.1",
+  "commit": "4537e22adf241158783fe26661b8081f9bc45e94",
+  "license": "GPL-2.0",
+  "localChanges": [
+    "Version download cache keys by account, path, ETag, CRC, size and modification time.",
+    "Reject truncated cached blocks instead of entering a read loop without progress."
+  ]
+}
