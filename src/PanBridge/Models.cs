@@ -8,7 +8,7 @@ namespace PanBridge;
 public record SavedCookie(string Name, string Value, string Domain, string Path, bool Secure, bool HttpOnly, bool Session, DateTime Expires, int SameSite);
 public record AuthSession(string UserToken, DateTimeOffset SavedAt, List<SavedCookie> Cookies);
 public enum DriveAccess { ReadOnly, NoDelete, Full }
-public record DriveSettings(string DriveLetter = "J:", bool AutoMount = false, DriveAccess Access = DriveAccess.Full, bool OpenAfterMount = false, bool ShowTrayHint = true);
+public record DriveSettings(string DriveLetter = "J:", bool AutoMount = false, DriveAccess Access = DriveAccess.Full, bool OpenAfterMount = false, bool ShowTrayHint = true, string? CacheDirectory = null, long CacheMaxBytes = CacheStorage.DefaultMaxBytes);
 
 public static class AppPaths
 {
@@ -21,13 +21,19 @@ public static class AppPaths
     public static string Rclone => Path.Combine(Runtime, "rclone", "rclone.exe");
     public static string Installer => Path.Combine(Runtime, "winfsp.msi");
     public static string Status => Path.Combine(Data, "status.json");
+    public static string DefaultCache => Path.Combine(Data, "cache");
     public static void Ensure() => Directory.CreateDirectory(Data);
     public static DriveSettings LoadSettings()
     {
         try { return JsonSerializer.Deserialize<DriveSettings>(File.ReadAllText(Path.Combine(Data, "settings.json"))) ?? new(); }
         catch { return new(); }
     }
-    public static void SaveSettings(DriveSettings settings) => File.WriteAllText(Path.Combine(Data, "settings.json"), JsonSerializer.Serialize(settings));
+    public static void SaveSettings(DriveSettings settings)
+    {
+        string path = Path.Combine(Data, "settings.json");
+        File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(settings));
+        File.Move(path + ".tmp", path, true);
+    }
     public static void WriteStatus(string state, int? entries = null, string? drive = null, string? error = null) =>
         File.WriteAllText(Status, JsonSerializer.Serialize(new { State = state, Entries = entries, Drive = drive, Access = LoadSettings().Access.ToString(), Error = error, Time = DateTimeOffset.Now }, new JsonSerializerOptions { WriteIndented = true }));
 }

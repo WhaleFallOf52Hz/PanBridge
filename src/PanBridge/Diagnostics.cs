@@ -54,12 +54,12 @@ public static class Diagnostics
         {
             File.WriteAllText(probe, "PanBridge storage check");
             File.Delete(probe);
-            var disk = new DriveInfo(Path.GetPathRoot(AppPaths.Data)!);
+            var disk = await Task.Run(() => CacheStorage.PrepareDirectory(mount.Cache));
             long free = disk.AvailableFreeSpace;
             add(new("本地数据与缓存", free < 1024L * 1024 * 1024 ? CheckResult.Warning : CheckResult.Passed,
-                $"数据目录可写，所在磁盘剩余 {free / 1024d / 1024 / 1024:0.0} GB。", free < 1024L * 1024 * 1024 ? "释放本地磁盘空间，避免影响文件缓存与上传。" : ""));
+                $"数据与缓存目录可写；缓存磁盘剩余 {free / 1024d / 1024 / 1024:0.0} GiB，上限 {CacheStorage.FormatGiB(mount.Cache.MaxBytes)} GiB。", free < 1024L * 1024 * 1024 ? "释放本地磁盘空间，避免影响文件缓存与上传。" : ""));
         }
-        catch { add(new("本地数据与缓存", CheckResult.Failed, "数据目录不可写，或无法读取磁盘空间。", "将完整程序目录移至当前用户可写的位置。")); }
+        catch { add(new("本地数据与缓存", CheckResult.Failed, "数据或缓存目录不可写，或无法读取磁盘空间。", "检查程序目录和所选缓存磁盘的可用性与写入权限。")); }
         finally { try { if (File.Exists(probe)) File.Delete(probe); } catch { } }
         try
         {

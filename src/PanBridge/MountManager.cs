@@ -18,14 +18,22 @@ public sealed class MountManager : IDisposable
     private Uri? controlAddress;
     private string? controlPassword;
     private DriveAccess access;
-    private readonly string cacheDirectory;
+    private string cacheDirectory;
+    private long cacheMaxBytes = CacheStorage.DefaultMaxBytes;
+    public CacheConfiguration Cache => new(cacheDirectory, cacheMaxBytes);
     private readonly string volumeName;
     public MountManager(string? cacheDirectory = null, string volumeName = "PanBridge")
     {
-        this.cacheDirectory = cacheDirectory ?? Path.Combine(AppPaths.Data, "cache");
+        this.cacheDirectory = cacheDirectory ?? AppPaths.DefaultCache;
         this.volumeName = volumeName;
     }
     public string? Drive { get; private set; }
+    public void ConfigureCache(CacheConfiguration configuration)
+    {
+        if (process is { HasExited: false }) throw new CloudAccessException("请先安全断开盘符，再修改缓存设置。");
+        cacheDirectory = configuration.Directory;
+        cacheMaxBytes = configuration.MaxBytes;
+    }
     // Query the local device table; rendering status must not wait for network filesystem I/O.
     public bool IsMounted => process is { HasExited: false } && Drive is not null && ShellDriveNotifications.DeviceExists(Drive);
     public static bool DriverInstalled
@@ -58,6 +66,7 @@ public sealed class MountManager : IDisposable
         if (!DriverInstalled) throw new CloudAccessException("首次使用需要安装挂载组件，请点击“安装挂载组件”。");
         if (!AvailableDrives().Contains(drive)) throw new CloudAccessException("这个盘符已被占用，请选择其他盘符。");
         if (!File.Exists(AppPaths.Rclone)) throw new CloudAccessException("缺少 rclone 组件，请完整解压应用后重试。");
+        await Task.Run(() => CacheStorage.PrepareDirectory(Cache));
         var obscureStart = new ProcessStartInfo(AppPaths.Rclone) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
         obscureStart.ArgumentList.Add("obscure"); obscureStart.ArgumentList.Add("-");
         using var obscure = Process.Start(obscureStart) ?? throw new IOException("rclone did not start.");
@@ -66,7 +75,8 @@ public sealed class MountManager : IDisposable
         await obscure.WaitForExitAsync();
         if (obscure.ExitCode != 0 || password.Length == 0) throw new IOException("Could not prepare mount credentials.");
         var start = new ProcessStartInfo(AppPaths.Rclone) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = AppPaths.Root };
-        foreach (var arg in new[] { "mount", "jbox:", drive, "--config", "NUL", "--network-mode", "--vfs-cache-mode", "full", "--vfs-write-back", "1s", "--vfs-cache-max-size", "1G", "--cache-dir", cacheDirectory, "--dir-cache-time", "30s", "--volname", volumeName, "--log-level", "ERROR", "--rc" }) start.ArgumentList.Add(arg);
+        // rclone treats a bare SizeSuffix number as KiB. Explicit B preserves the requested byte limit.
+        foreach (var arg in new[] { "mount", "jbox:", drive, "--config", "NUL", "--network-mode", "--vfs-cache-mode", "full", "--vfs-write-back", "1s", "--vfs-cache-max-size", cacheMaxBytes.ToString(System.Globalization.CultureInfo.InvariantCulture) + "B", "--cache-dir", cacheDirectory, "--dir-cache-time", "30s", "--volname", volumeName, "--log-level", "ERROR", "--rc" }) start.ArgumentList.Add(arg);
         if (requestedAccess == DriveAccess.ReadOnly) start.ArgumentList.Add("--read-only");
         access = requestedAccess;
         var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start();

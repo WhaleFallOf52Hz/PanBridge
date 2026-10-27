@@ -25,7 +25,7 @@ public partial class MainWindow : Window
             if (ReferenceEquals(e.Source, Navigation) && Navigation.SelectedItem is TabItem { Content: ScrollViewer page } tab)
                 Dispatcher.BeginInvoke(() => { tab.Focus(); page.ScrollToTop(); });
         };
-        workspace = new WorkspaceViewModel(OfficialLoginAsync, ClearBrowserAsync, SaveReport);
+        workspace = new WorkspaceViewModel(OfficialLoginAsync, ClearBrowserAsync, SaveReport, ChooseCacheFolder);
         DataContext = workspace;
         using (var stream = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/PanBridge.ico")).Stream)
         using (var sourceIcon = new System.Drawing.Icon(stream, Forms.SystemInformation.SmallIconSize)) trayIcon = (System.Drawing.Icon)sourceIcon.Clone();
@@ -71,6 +71,15 @@ public partial class MainWindow : Window
     {
         var dialog = new Microsoft.Win32.SaveFileDialog { Title = "导出诊断报告", FileName = $"PanBridge-diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.txt", Filter = "文本报告 (*.txt)|*.txt", DefaultExt = ".txt" };
         if (dialog.ShowDialog(this) == true) File.WriteAllText(dialog.FileName, report, new System.Text.UTF8Encoding(true));
+    }
+    private string? ChooseCacheFolder(string current)
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "选择交云桥缓存目录", Multiselect = false,
+            InitialDirectory = Directory.Exists(current) ? current : AppPaths.Data
+        };
+        return dialog.ShowDialog(this) == true ? dialog.FolderName : null;
     }
     private void ShowMain() { Show(); WindowState = WindowState.Normal; Activate(); }
     private async void ExitClick(object sender, RoutedEventArgs e) => await ExitAsync();

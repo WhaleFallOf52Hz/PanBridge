@@ -17,10 +17,12 @@
 - **概览**：查看云盘和本地服务状态，通过主按钮登录、连接或打开云盘。
 - **连接与挂载**：管理登录、盘符与访问权限，检测云盘目录访问及上传队列。盘符和权限需点击“保存并应用”；已连接时会等待上传完成后重新连接。
 - **故障诊断**：检查 WinFsp、Tbox、rclone、WebView2、本地存储、HTTPS、登录、本地服务与上传队列，并给出处理建议。支持导出不含 Cookie、令牌、账号和云盘文件名的文本报告；检测不会写入云盘测试文件。
-- **偏好设置**：自动连接、连接后打开资源管理器、托盘提示、数据目录、清除登录与挂载组件安装。“启动客户端后自动连接”不等于 Windows 开机自启动。
+- **偏好设置**：自动连接、连接后打开资源管理器、托盘提示、缓存目录与空间上限、数据目录、清除登录与挂载组件安装。“启动客户端后自动连接”不等于 Windows 开机自启动。
 - **关于交云桥**：版本、运行环境、第三方组件与许可证。
 
-本地缓存的目标上限为 1 GB，正在使用或等待上传的文件可能暂时超出上限。关闭窗口保持后台连接；主动退出时会等待上传结束。
+缓存默认位于 `data/cache`，上限默认为 1 GiB，可设置 0.1–1048576 GiB（最多两位小数）。在“本地存储与隐私”选择本机 NTFS/ReFS 文件夹，点击“应用缓存设置”；已连接时会等待上传完成并重连。切换目录不移动或删除旧缓存，检测到未上传文件或无法确认上传状态时会阻止切换。登录凭证的位置不受缓存设置影响。支持恢复默认设置和打开当前缓存目录。
+
+缓存上限是清理目标，正在使用或等待上传的文件可能暂时超出上限，详见 [rclone VFS 缓存说明](https://rclone.org/commands/rclone_mount/#vfs-file-caching)。关闭窗口保持后台连接；主动退出时会等待上传结束。
 
 界面采用 WPF 数据绑定：`MainWindow` 负责桌面窗口、托盘与原生对话框，`WorkspaceViewModel` 管理状态、命令和连接操作，`Diagnostics` 独立执行检查；Tbox、挂载与加密存储各自保留独立实现。统一的颜色、排版和控件样式位于 `App.xaml`。
 
@@ -49,7 +51,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 -Package
 产物：
 
 - `dist/PanBridge/PanBridge.exe`
-- `dist/PanBridge-0.2.0-win-x64.zip`
+- `dist/PanBridge-0.2.1-win-x64.zip`
 
 便携包自动排除个人登录数据、缓存及测试结果。更新正在运行的程序前，请从托盘菜单退出，以便等待文件上传完成。
 
@@ -59,7 +61,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 -Package
 dist\PanBridge\PanBridge.exe --self-test
 ```
 
-自检使用虚构凭证，验证 Cookie、DPAPI、WebDAV 解析、旧设置迁移、界面命令状态、权限编辑和诊断结果分级，结果写入程序目录的 `self-test.json`。
+自检使用虚构凭证，验证 Cookie、DPAPI、WebDAV 解析、旧设置迁移、界面命令状态、权限编辑、诊断分级，以及缓存路径、容量与未上传文件保护，结果写入程序目录的 `self-test.json`。
 
 客户端在 Windows 桌面运行时，可执行界面冒烟检查，验证五页导航、关键控件、小窗口排布及九项诊断结果展示：
 

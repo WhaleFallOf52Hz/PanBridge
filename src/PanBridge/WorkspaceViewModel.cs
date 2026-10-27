@@ -23,11 +23,13 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
     private readonly Func<TboxBackend, AuthSession?, Task<AuthSession?>> login;
     private readonly Func<Task> clearBrowser;
     private readonly Action<string> saveReport;
+    private readonly Func<string, string?>? chooseCacheFolder;
     private readonly List<UiCommand> commands = [];
     private AuthSession? session;
     private DriveSettings settings;
     private string? selectedDrive;
     private DriveAccess selectedAccess;
+    private string cacheDirectoryText, cacheLimitGiBText;
     private bool busy, cloudVerified, hasError;
     private int entries;
     private string message = "正在恢复本地登录…", operation = "正在准备", transfer = "尚未检测";
@@ -51,11 +53,19 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
     public UiCommand DataCommand { get; }
     public UiCommand LicensesCommand { get; }
     public UiCommand RefreshDrivesCommand { get; }
-    public WorkspaceViewModel(Func<TboxBackend, AuthSession?, Task<AuthSession?>> login, Func<Task> clearBrowser, Action<string> saveReport)
+    public UiCommand BrowseCacheCommand { get; }
+    public UiCommand ApplyCacheCommand { get; }
+    public UiCommand DefaultCacheCommand { get; }
+    public UiCommand OpenCacheCommand { get; }
+    public WorkspaceViewModel(Func<TboxBackend, AuthSession?, Task<AuthSession?>> login, Func<Task> clearBrowser, Action<string> saveReport, Func<string, string?>? chooseCacheFolder = null)
     {
         this.login = login; this.clearBrowser = clearBrowser; this.saveReport = saveReport;
+        this.chooseCacheFolder = chooseCacheFolder;
         AppPaths.Ensure(); settings = AppPaths.LoadSettings();
         if (!Enum.IsDefined(settings.Access)) settings = settings with { Access = DriveAccess.Full };
+        cacheDirectoryText = string.IsNullOrWhiteSpace(settings.CacheDirectory) ? AppPaths.DefaultCache : settings.CacheDirectory;
+        cacheLimitGiBText = CacheStorage.FormatGiB(settings.CacheMaxBytes);
+        mount.ConfigureCache(new(cacheDirectoryText, settings.CacheMaxBytes));
         selectedAccess = settings.Access; RefreshDrives();
         UiCommand Command(Action action, Func<bool>? can = null) { var command = new UiCommand(action, can); commands.Add(command); return command; }
         PrimaryCommand = Command(async () => { if (IsMounted) OpenDrive(); else if (session is null) await LoginAsync(); else await MountAsync(); }, () => !busy);
@@ -80,6 +90,18 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
         DataCommand = Command(() => OpenPath(AppPaths.Data), () => !busy);
         LicensesCommand = Command(() => OpenPath(Path.Combine(AppPaths.Root, "THIRD-PARTY-NOTICES.txt")), () => !busy);
         RefreshDrivesCommand = Command(() => { RefreshDrives(); Notify(); }, () => !busy);
+        BrowseCacheCommand = Command(() =>
+        {
+            try { string? directory = this.chooseCacheFolder?.Invoke(CacheDirectoryText); if (directory is not null) CacheDirectoryText = directory; }
+            catch (Exception ex) { ShowError(ex); }
+        }, () => !busy && this.chooseCacheFolder is not null);
+        ApplyCacheCommand = Command(async () => await ApplyCacheAsync(), () => !busy && CacheHasChanges && CacheValidation.Length == 0);
+        DefaultCacheCommand = Command(() => { cacheDirectoryText = AppPaths.DefaultCache; cacheLimitGiBText = "1"; Notify(); }, () => !busy);
+        OpenCacheCommand = Command(async () => await RunAsync("正在打开缓存目录", async () =>
+        {
+            var current = CacheStorage.FromSettings(settings);
+            await Task.Run(() => CacheStorage.PrepareDirectory(current)); OpenPath(current.Directory);
+        }), () => !busy);
     }
     public bool IsBusy => busy;
     public bool IsIdle => !busy;
@@ -130,6 +152,28 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
     public string TboxVersion => ProductInfo.ComponentVersion(AppPaths.Tbox);
     public string RcloneVersion => ProductInfo.ComponentVersion(AppPaths.Rclone);
     public string DataPath => AppPaths.Data;
+    public string CacheDirectoryText { get => cacheDirectoryText; set { if (cacheDirectoryText != value) { cacheDirectoryText = value; Notify(); } } }
+    public string CacheLimitGiBText { get => cacheLimitGiBText; set { if (cacheLimitGiBText != value) { cacheLimitGiBText = value; Notify(); } } }
+    public string CacheValidation
+    {
+        get { try { CacheStorage.Parse(CacheDirectoryText, CacheLimitGiBText); return ""; } catch (CloudAccessException ex) { return ex.Message; } }
+    }
+    public bool CacheHasChanges
+    {
+        get
+        {
+            try
+            {
+                var draft = CacheStorage.Parse(CacheDirectoryText, CacheLimitGiBText);
+                var current = CacheStorage.FromSettings(settings);
+                return !CacheStorage.SamePath(draft.Directory, current.Directory) || draft.MaxBytes != current.MaxBytes;
+            }
+            catch { return true; }
+        }
+    }
+    public bool HasCacheError => CacheValidation.Length > 0;
+    public string CacheSummary => $"当前缓存上限 {CacheStorage.FormatGiB(settings.CacheMaxBytes)} GiB";
+    public string CacheApplyHint => CacheHasChanges ? "有未应用的缓存更改。已连接时会等待上传结束，再自动重连。" : "缓存设置已保存。";
     public async Task InitializeAsync() => await RunAsync("正在恢复登录", async () =>
     {
         WriteState("starting");
@@ -158,6 +202,7 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
     {
         if (session is null || IsMounted) return;
         await SaveMountSettingsAsync(); await ValidateAsync();
+        mount.ConfigureCache(CacheStorage.FromSettings(settings));
         await mount.MountAsync(backend.Address!, session.UserToken, settings.DriveLetter, settings.Access);
         transfer = "可在连接检测中查看上传队列"; Message = $"已连接 {mount.Drive}，当前为{AccessLabel}。"; WriteState();
         if (settings.OpenAfterMount) OpenDrive();
@@ -191,6 +236,51 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
         var next = settings with { DriveLetter = SelectedDrive, Access = SelectedAccess };
         AppPaths.SaveSettings(next); settings = next; Notify();
     }
+    public async Task ApplyCacheAsync() => await RunAsync("正在应用缓存设置", async () =>
+    {
+        var next = CacheStorage.Parse(CacheDirectoryText, CacheLimitGiBText);
+        var previousSettings = settings;
+        var previous = CacheStorage.FromSettings(settings);
+        CacheStorage.ValidateTransition(previous, next);
+        bool changedDirectory = !CacheStorage.SamePath(previous.Directory, next.Directory);
+        // Validate first: an invalid destination must leave a live connection untouched.
+        await Task.Run(() => { CacheStorage.PrepareDirectory(next); if (changedDirectory) CacheStorage.EnsureClean(next.Directory); });
+        bool reconnect = IsMounted, saved = false;
+        string? drive = mount.Drive;
+        await mount.WaitForUploadsAsync();
+        if (changedDirectory) await Task.Run(() => CacheStorage.EnsureClean(previous.Directory));
+        try
+        {
+            await mount.DisconnectAsync();
+            if (changedDirectory) await Task.Run(() => { CacheStorage.EnsureClean(previous.Directory); CacheStorage.EnsureClean(next.Directory); });
+            mount.ConfigureCache(next);
+            var updated = settings with { CacheDirectory = CacheStorage.SamePath(next.Directory, AppPaths.DefaultCache) ? null : next.Directory, CacheMaxBytes = next.MaxBytes };
+            AppPaths.SaveSettings(updated); saved = true; settings = updated;
+            if (reconnect && session is not null)
+                await mount.MountAsync(backend.Address!, session.UserToken, drive!, settings.Access);
+            cacheDirectoryText = next.Directory; cacheLimitGiBText = CacheStorage.FormatGiB(next.MaxBytes);
+            transfer = reconnect ? "上传队列为空" : "盘符未连接";
+            Message = reconnect ? "缓存设置已应用，盘符已重新连接。旧缓存保留在原目录。" : "缓存设置已保存，将在下次连接时使用。旧缓存保留在原目录。";
+            WriteState();
+        }
+        catch (Exception changeError)
+        {
+            // Restore both persisted preferences and the active mount configuration on failure.
+            try
+            {
+                if (saved || !IsMounted)
+                {
+                    await mount.DisconnectAsync(); mount.ConfigureCache(previous);
+                    if (saved) AppPaths.SaveSettings(previousSettings);
+                    settings = previousSettings;
+                    if (reconnect && session is not null)
+                        await mount.MountAsync(backend.Address!, session.UserToken, drive!, previousSettings.Access);
+                }
+            }
+            catch { throw new CloudAccessException("缓存设置未能应用，旧缓存已保留。请检查磁盘和网络后按原设置重新连接。"); }
+            throw new CloudAccessException("缓存设置未能应用，已恢复原设置。" + SafeError.Describe(changeError));
+        }
+    });
     private async Task TestAsync() => await RunAsync("正在检测连接", async () =>
     {
         var timer = Stopwatch.StartNew(); await backend.SetAccessAsync(settings.Access); await ValidateAsync();

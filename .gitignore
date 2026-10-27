@@ -8,6 +8,9 @@
 **/data/
 **/browser-profile/
 **/cache/
+# rclone data and metadata when a custom cache directory is inside the repository
+**/vfs/
+**/vfsMeta/
 **/__pycache__/
 *.py[cod]
 .vs/

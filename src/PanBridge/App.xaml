@@ -89,6 +89,28 @@
       <Setter Property="Foreground" Value="{StaticResource Accent}" />
       <Setter Property="Padding" Value="10,8" />
     </Style>
+    <Style TargetType="TextBox">
+      <Setter Property="FontFamily" Value="Microsoft YaHei UI" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Padding" Value="12,9" />
+      <Setter Property="Background" Value="White" />
+      <Setter Property="BorderBrush" Value="#D8DFEA" />
+      <Setter Property="Foreground" Value="{StaticResource Ink}" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TextBox">
+            <Border x:Name="Box" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6">
+              <ScrollViewer x:Name="PART_ContentHost" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Accent}" /></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45" /></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
     <Style TargetType="ComboBoxItem">
       <Setter Property="Padding" Value="12,9" />
       <Setter Property="Background" Value="White" />

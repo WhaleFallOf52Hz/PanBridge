@@ -50,6 +50,9 @@ try {
     }
     Select-Page 'SettingsTab'
     foreach ($id in @('AutoMountCheck','OpenAfterMountCheck','TrayHintCheck')) { Assert-Visible $id }
+    (Find-Control 'CacheDirectoryBox').SetFocus()
+    Start-Sleep -Milliseconds 200
+    foreach ($id in @('CacheDirectoryBox','BrowseCacheButton','CacheLimitBox','ApplyCacheButton','DefaultCacheButton')) { Assert-Visible $id }
     Select-Page 'AboutTab'
     $checks.Add('about:navigation_available')
     # Check the minimum supported desktop size, then restore the user's window size.

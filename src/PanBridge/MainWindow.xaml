@@ -320,7 +320,7 @@
         <ScrollViewer Style="{StaticResource PageScroll}">
           <StackPanel MaxWidth="900">
             <TextBlock Text="偏好设置" Style="{StaticResource Title}" />
-            <TextBlock Text="设置会自动保存，下次打开客户端时继续使用。" Style="{StaticResource Subtitle}" />
+            <TextBlock Text="常规偏好自动保存；修改缓存目录或空间上限后，请点击应用。" Style="{StaticResource Subtitle}" />
             <Border Style="{StaticResource Card}">
               <StackPanel IsEnabled="{Binding IsIdle}">
                 <TextBlock Text="启动与窗口" Style="{StaticResource SectionTitle}" />
@@ -336,7 +336,32 @@
             <Border Style="{StaticResource Card}">
               <StackPanel>
                 <TextBlock Text="本地存储与隐私" Style="{StaticResource SectionTitle}" />
-                <TextBlock Text="登录凭证使用 Windows DPAPI 加密。文件按需缓存，目标缓存上限为 1 GB；正在使用或等待上传的文件可能暂时超出上限。" Style="{StaticResource Caption}" />
+                <StackPanel IsEnabled="{Binding IsIdle}">
+                  <TextBlock Text="缓存目录" Style="{StaticResource Caption}" Margin="0,0,0,7" />
+                  <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBox x:Name="CacheDirectoryBox" Text="{Binding CacheDirectoryText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding CacheDirectoryText}" AutomationProperties.Name="缓存目录" MinWidth="120" />
+                    <Button x:Name="BrowseCacheButton" Grid.Column="1" Content="选择文件夹…" Command="{Binding BrowseCacheCommand}" Margin="10,0,0,0" />
+                  </Grid>
+                  <TextBlock Text="最大缓存空间" Style="{StaticResource Caption}" Margin="0,16,0,7" />
+                  <StackPanel Orientation="Horizontal">
+                    <TextBox x:Name="CacheLimitBox" Width="110" Text="{Binding CacheLimitGiBText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="最大缓存空间 GiB" />
+                    <TextBlock Text="GiB" VerticalAlignment="Center" Margin="10,0,18,0" Foreground="{StaticResource Muted}" />
+                    <TextBlock Text="{Binding CacheSummary}" VerticalAlignment="Center" Style="{StaticResource Caption}" />
+                  </StackPanel>
+                  <TextBlock Text="上限是缓存清理目标，并非硬性磁盘配额；正在使用或等待上传的文件可能暂时超出上限。支持两位小数，1 GiB = 1024 MiB。" Style="{StaticResource Caption}" Margin="0,10,0,0" />
+                  <TextBlock Text="{Binding CacheValidation}" Visibility="{Binding HasCacheError, Converter={StaticResource VisibleIf}}" Foreground="#C43F45" Margin="0,10,0,0" />
+                  <WrapPanel Margin="0,16,0,0">
+                    <Button x:Name="ApplyCacheButton" Content="应用缓存设置" Command="{Binding ApplyCacheCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,10,0" />
+                    <Button x:Name="DefaultCacheButton" Content="恢复默认" Command="{Binding DefaultCacheCommand}" Margin="0,0,10,0" />
+                    <Button x:Name="OpenCacheButton" Content="打开缓存目录" Command="{Binding OpenCacheCommand}" Style="{StaticResource TextButton}" />
+                  </WrapPanel>
+                  <TextBlock Text="{Binding CacheApplyHint}" Style="{StaticResource Caption}" Margin="0,12,0,0" />
+                  <TextBlock Text="切换前请保存并关闭正在编辑的云盘文件。旧缓存会保留在原目录，不会自动移动或清理。" Style="{StaticResource Caption}" Margin="0,5,0,0" />
+                </StackPanel>
+                <Border Style="{StaticResource Rule}" />
+                <TextBlock Text="登录数据" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <TextBlock Text="登录凭证使用 Windows DPAPI 加密，保存在下方目录，不随文件缓存目录切换。" Style="{StaticResource Caption}" />
                 <TextBlock Text="{Binding DataPath}" Style="{StaticResource Caption}" FontFamily="Segoe UI" Margin="0,10,0,16" TextTrimming="CharacterEllipsis" ToolTip="{Binding DataPath}" />
                 <WrapPanel>
                   <Button Content="打开数据目录" Command="{Binding DataCommand}" />
