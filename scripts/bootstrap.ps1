@@ -1,4 +1,4 @@
-param()
+param([switch]$Installer)
 $ErrorActionPreference = 'Stop'
 $repository = Split-Path $PSScriptRoot
 $tools = Join-Path $repository '.build-tools'
@@ -30,4 +30,14 @@ if (-not (Get-ChildItem -LiteralPath (Join-Path $tools 'rclone') -Filter rclone.
     Expand-Archive -LiteralPath $rcloneArchive -DestinationPath (Join-Path $tools 'rclone') -Force
 }
 Get-VerifiedArchive $manifest.winfsp | Out-Null
+if ($Installer) {
+    $compilerSetup = Get-VerifiedArchive $manifest.inno
+    $signature = Get-AuthenticodeSignature -LiteralPath $compilerSetup
+    if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Pyrsys B.V.') { throw 'Inno Setup publisher verification failed.' }
+    $compilerDirectory = Join-Path $tools 'inno'
+    if (-not (Test-Path -LiteralPath (Join-Path $compilerDirectory 'ISCC.exe'))) {
+        $install = Start-Process -FilePath $compilerSetup -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-','/CURRENTUSER','/NOICONS',('/DIR="' + $compilerDirectory + '"')) -WindowStyle Hidden -Wait -PassThru
+        if ($install.ExitCode -ne 0) { throw 'Inno Setup compiler installation failed.' }
+    }
+}
 Write-Output 'Verified SDK, rclone and WinFsp dependencies are ready.'

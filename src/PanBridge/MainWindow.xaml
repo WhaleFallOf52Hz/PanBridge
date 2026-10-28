@@ -324,8 +324,12 @@
             <Border Style="{StaticResource Card}">
               <StackPanel IsEnabled="{Binding IsIdle}">
                 <TextBlock Text="启动与窗口" Style="{StaticResource SectionTitle}" />
+                <CheckBox x:Name="WindowsStartupCheck" Content="随 Windows 登录启动，在托盘运行" IsChecked="{Binding StartWithWindows, Mode=TwoWay}" />
+                <TextBlock Text="{Binding WindowsStartupStatus}" Style="{StaticResource Caption}" Margin="29,6,0,0" />
+                <Button x:Name="WindowsStartupButton" Content="打开 Windows 启动应用设置" Command="{Binding WindowsStartupCommand}" Style="{StaticResource TextButton}" HorizontalAlignment="Left" Margin="22,4,0,0" />
+                <Border Style="{StaticResource Rule}" />
                 <CheckBox x:Name="AutoMountCheck" Content="启动客户端后自动连接云盘" IsChecked="{Binding AutoMount, Mode=TwoWay}" />
-                <TextBlock Text="使用已保存的登录和盘符；此选项不会设置 Windows 开机自启动。" Style="{StaticResource Caption}" Margin="29,6,0,0" />
+                <TextBlock Text="使用已保存的登录和盘符。与上方的 Windows 自启动选项配合，可在登录后自动连接云盘。" Style="{StaticResource Caption}" Margin="29,6,0,0" />
                 <Border Style="{StaticResource Rule}" />
                 <CheckBox x:Name="OpenAfterMountCheck" Content="连接成功后打开资源管理器" IsChecked="{Binding OpenAfterMount, Mode=TwoWay}" />
                 <Border Style="{StaticResource Rule}" />

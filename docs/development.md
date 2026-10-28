@@ -7,14 +7,17 @@ PanBridge 使用 C#、.NET 8 和 WPF，官方登录窗口基于 WebView2。TboxW
 在 Windows PowerShell 中，从仓库根目录运行：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 -Package
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 -Installer
 ```
 
 脚本通过 `scripts/bootstrap.ps1` 准备并校验依赖，再构建客户端和 TboxWebdav，生成便携包。所需下载版本及校验值固定在 [dependencies.json](../dependencies.json)，SDK 版本由 [global.json](../global.json) 指定，NuGet 依赖使用锁文件恢复。
 
+`-Installer` 同时生成便携包与 EXE 安装包，并准备已固定校验值的 Inno Setup 编译器；`-Package` 仅生成便携包。安装脚本位于 `installer/PanBridge.iss`，只使用干净便携包中的文件作为输入。
+
 - `.build-tools/`：SDK、依赖下载及构建缓存。
 - `dist/PanBridge/`：可直接运行的程序及组件。
 - `dist/PanBridge-<版本>-win-x64.zip`：便携包，排除登录数据、文件缓存和测试结果。
+- `dist/PanBridge-<版本>-Setup-x64.exe`：当前用户安装包。
 
 若要覆盖正在运行的程序，请先通过托盘菜单退出，等待上传结束。构建产物和个人数据不纳入版本管理。
 
@@ -40,6 +43,14 @@ dist\PanBridge\PanBridge.exe --self-test
 ```
 
 使用虚构凭证和隔离的缓存目录，检查 Cookie 规则、DPAPI 加密、WebDAV 解析、设置兼容性、命令可用性和缓存保护逻辑。不读取个人登录凭证，也不访问云盘。结果写入程序目录的 `self-test.json`。
+
+启动项测试仅写入 `HKCU\Software\PanBridge\Tests\<随机标识>` 并在完成后清理，不修改实际启动项。实际功能使用 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`，只读 Windows 的 `StartupApproved` 状态，不重置用户在系统中的禁用选择。
+
+`PanBridge.exe --startup` 用于已启用的 Windows 启动项；`--background` 可独立检查冷启动托盘行为；`--quit` 请求运行中的实例等待上传完成并安全退出。
+
+## Release
+
+推送与项目版本一致的 `v<版本>` 标签后，`.github/workflows/release.yml` 在 Windows Runner 构建 EXE 与 ZIP，执行安装后自检，再发布到 GitHub Release，并附上 SHA-256 校验文件。发布使用仓库范围的 `GITHUB_TOKEN`，不需要在源码中保存个人令牌。
 
 ### 界面测试
 

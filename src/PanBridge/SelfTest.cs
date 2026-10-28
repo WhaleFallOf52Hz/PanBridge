@@ -36,6 +36,7 @@ public static class SelfTest
         if (WorkspaceViewModel.Summarize([new("login", CheckResult.Skipped, "not logged in")]).Contains("全部通过")) throw new Exception("Skipped diagnostics reported success.");
         if (new TransferStatus(2, 1, 1).Summary.Contains("队列为空")) throw new Exception("Pending failed uploads were reported idle.");
         CacheStorageTest.Run();
+        StartupRegistrationTest.Run();
         using (var viewModel = new WorkspaceViewModel((_, _) => Task.FromResult<AuthSession?>(null), () => Task.CompletedTask, _ => { }))
         {
             if (viewModel.MountCommand.CanExecute(null) || viewModel.TestCommand.CanExecute(null) || viewModel.OpenCommand.CanExecute(null) || viewModel.ExportCommand.CanExecute(null)) throw new Exception("Unauthenticated UI commands are enabled.");
@@ -56,6 +57,6 @@ public static class SelfTest
         using (var ico = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/PanBridge.ico")).Stream)
         using (var icon = new System.Drawing.Icon(ico, new System.Drawing.Size(16, 16)))
             if (icon.Width != 16 || icon.Height != 16) throw new Exception("Small tray icon could not be decoded.");
-        File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "self-test.json"), JsonSerializer.Serialize(new { Success = true, Checks = new[] { "cookie_names", "cookie_expiry", "cookie_domain", "dpapi_roundtrip", "no_plaintext_token", "webdav_xml", "invalid_xml_rejected", "settings_upgrade", "diagnostic_severity", "upload_status", "command_availability", "explicit_permission_apply", "cache_legacy_defaults", "cache_limit_validation", "cache_path_validation", "cache_pending_upload_guard", "cache_metadata_failure_guard", "cache_write_probe", "cache_command_validation", "app_icon_resources", "small_tray_icon" } }, new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "self-test.json"), JsonSerializer.Serialize(new { Success = true, Checks = new[] { "cookie_names", "cookie_expiry", "cookie_domain", "dpapi_roundtrip", "no_plaintext_token", "webdav_xml", "invalid_xml_rejected", "settings_upgrade", "diagnostic_severity", "upload_status", "command_availability", "explicit_permission_apply", "cache_legacy_defaults", "cache_limit_validation", "cache_path_validation", "cache_pending_upload_guard", "cache_metadata_failure_guard", "cache_write_probe", "cache_command_validation", "startup_registration", "windows_disable_respected", "startup_path_quoting", "app_icon_resources", "small_tray_icon" } }, new JsonSerializerOptions { WriteIndented = true }));
     }
 }

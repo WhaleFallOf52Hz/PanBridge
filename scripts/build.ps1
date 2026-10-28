@@ -1,7 +1,8 @@
-param([switch]$Package, [switch]$SkipBootstrap, [string]$Sdk)
+param([switch]$Package, [switch]$Installer, [switch]$SkipBootstrap, [string]$Sdk)
 $ErrorActionPreference = 'Stop'
 $repository = Split-Path $PSScriptRoot
-if (-not $SkipBootstrap) { & (Join-Path $PSScriptRoot 'bootstrap.ps1') }
+if ($Installer) { $Package = $true }
+if (-not $SkipBootstrap) { & (Join-Path $PSScriptRoot 'bootstrap.ps1') -Installer:$Installer }
 if (-not $Sdk) { $Sdk = Join-Path $repository '.build-tools\dotnet\dotnet.exe' }
 $env:DOTNET_CLI_HOME = Join-Path $repository '.build-tools\cli-home'
 $env:NUGET_PACKAGES = Join-Path $repository '.build-tools\nuget'
@@ -55,4 +56,21 @@ if ($Package) {
         }
     } finally { $packageArchive.Dispose() }
     Write-Output "Package: $packagePath"
+}
+if ($Installer) {
+    $compiler = Join-Path $repository '.build-tools\inno\ISCC.exe'
+    if (-not (Test-Path -LiteralPath $compiler)) { throw 'Inno Setup is missing. Run bootstrap.ps1 -Installer first.' }
+    # Compile only from the freshly-created portable package, which already excludes personal data.
+    $stage = Join-Path $repository ('.build-tools\installer-input-' + [Guid]::NewGuid().ToString('N'))
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($packagePath, $stage)
+    try {
+        & $compiler '/Q' ('/DAppVersion=' + $version) ('/DPayloadDir=' + (Join-Path $stage 'PanBridge')) ('/DRepositoryDir=' + $repository) ('/DOutputDir=' + (Join-Path $repository 'dist')) (Join-Path $repository 'installer\PanBridge.iss')
+        if ($LASTEXITCODE -ne 0) { throw 'EXE installer compilation failed.' }
+    } finally {
+        $resolvedStage = [System.IO.Path]::GetFullPath($stage)
+        $allowedParent = [System.IO.Path]::GetFullPath((Join-Path $repository '.build-tools'))
+        if ([System.IO.Path]::GetDirectoryName($resolvedStage) -ne $allowedParent -or -not [System.IO.Path]::GetFileName($resolvedStage).StartsWith('installer-input-')) { throw 'Unexpected installer staging directory.' }
+        Remove-Item -LiteralPath $resolvedStage -Recurse -Force
+    }
+    Write-Output "Installer: $repository\dist\PanBridge-$version-Setup-x64.exe"
 }

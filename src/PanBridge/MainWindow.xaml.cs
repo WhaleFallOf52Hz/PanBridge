@@ -16,6 +16,9 @@ public partial class MainWindow : Window
     private readonly System.Drawing.Icon trayIcon;
     private readonly EventWaitHandle showEvent;
     private readonly RegisteredWaitHandle showRegistration;
+    private readonly EventWaitHandle exitEvent;
+    private readonly RegisteredWaitHandle exitRegistration;
+    private Task? initialization;
     private bool quit, trayHintShown;
     public MainWindow()
     {
@@ -42,14 +45,24 @@ public partial class MainWindow : Window
         Application.Current.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\PanBridge.ShowWindow");
         showRegistration = ThreadPool.RegisterWaitForSingleObject(showEvent, (_, _) => Dispatcher.BeginInvoke(ShowMain), null, Timeout.Infinite, false);
-        Loaded += async (_, _) => await workspace.InitializeAsync();
+        exitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\PanBridge.RequestExit");
+        exitRegistration = ThreadPool.RegisterWaitForSingleObject(exitEvent, (_, _) => Dispatcher.BeginInvoke(async () => await ExitAsync()), null, Timeout.Infinite, false);
+        Loaded += async (_, _) => await InitializeOnceAsync();
+        Activated += (_, _) => workspace.RefreshStartupStatus();
         Closing += OnClosing;
         Closed += (_, _) =>
         {
-            showRegistration.Unregister(null); showEvent.Dispose(); workspace.Dispose(); tray.Dispose(); trayIcon.Dispose();
+            showRegistration.Unregister(null); showEvent.Dispose(); exitRegistration.Unregister(null); exitEvent.Dispose(); workspace.Dispose(); tray.Dispose(); trayIcon.Dispose();
             AppPaths.WriteStatus("stopped"); Application.Current.Shutdown();
         };
         StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) Hide(); };
+    }
+    private Task InitializeOnceAsync(bool background = false) => initialization ??= workspace.InitializeAsync(background);
+    public async Task StartInTrayAsync()
+    {
+        // Create the hidden HWND for native dialogs/activation, without ever showing a foreground window.
+        new WindowInteropHelper(this).EnsureHandle();
+        await InitializeOnceAsync(true);
     }
     private Task<AuthSession?> OfficialLoginAsync(TboxBackend backend, AuthSession? previous)
     {

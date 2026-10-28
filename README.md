@@ -14,7 +14,7 @@
 
 - **官方网页登录**：在交大登录页完成认证和验证码，无需手动复制 Cookie。
 - **资源管理器访问**：将云盘挂载为盘符，支持只读、读写禁止删除、完整读写三种权限。
-- **托盘后台运行**：关闭窗口后保持连接，支持启动客户端后自动挂载。
+- **托盘后台运行**：关闭窗口后保持连接，支持 Windows 登录后在托盘启动并自动挂载。
 - **可配置文件缓存**：按需读取文件，可更改缓存目录和空间上限。
 - **连接检测与诊断**：检查云盘访问、本地组件和上传状态，支持导出诊断报告。
 
@@ -22,7 +22,7 @@
 
 需要 Windows x64、可用的交大云盘账号，以及 [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)。挂载依赖 WinFsp，客户端提供安装入口；安装驱动时需要管理员权限。
 
-1. 按[源码构建说明](#从源码构建)生成程序，运行 `dist/PanBridge/PanBridge.exe`。如果使用便携包，请先完整解压。
+1. 从 [Releases](https://github.com/WhaleFallOf52Hz/PanBridge/releases/latest) 下载 EXE 安装包或便携 ZIP。运行安装程序，或完整解压便携包后运行 `PanBridge.exe`。也可以[从源码构建](#从源码构建)。
 2. 点击“登录交大云盘”，在官方页面完成登录。
 3. 首次挂载时，进入“偏好设置”安装挂载组件。
 4. 在“连接与挂载”中选择盘符和权限，再点击“连接盘符”。连接成功后即可在资源管理器中使用。
@@ -37,9 +37,10 @@
 
 - 自定义缓存需使用本机 NTFS/ReFS 磁盘。切换目录时会等待上传完成并重连，旧缓存不会自动移动或删除。
 - 缓存上限是清理目标，正在使用或等待上传的文件可能暂时超出上限。
-- “启动客户端后自动连接”在打开程序时生效，不会设置 Windows 开机自启动。
+- 启用“随 Windows 登录启动”后，可在 Windows“设置 → 应用 → 启动”或任务管理器的“启动应用”中管理 PanBridge。程序会保留系统中的禁用选择。
+- 自启动时只在托盘运行。“启动客户端后自动连接云盘”决定是否同时挂载盘符，不会在登录时弹出主窗口或资源管理器。
 
-登录凭证和设置保存在程序目录的 `data/` 中。凭证使用 Windows 当前用户的 DPAPI 加密；文件缓存不加密，可能包含已访问的云盘文件。请勿分享 `data/` 或自定义缓存目录。
+安装版默认位于 `%LOCALAPPDATA%\Programs\PanBridge`。登录凭证和设置保存在程序目录的 `data/` 中，更新时保留，卸载时也不会自动删除。凭证使用 Windows 当前用户的 DPAPI 加密；文件缓存不加密，可能包含已访问的云盘文件。请勿分享 `data/` 或自定义缓存目录。
 
 学校登录状态过期后，需要重新完成官方登录。可在设置中清除本地登录数据。
 
@@ -52,12 +53,12 @@
 ```powershell
 git clone https://github.com/WhaleFallOf52Hz/PanBridge.git
 cd PanBridge
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 -Package
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 -Installer
 ```
 
-构建脚本会下载并校验所需的 .NET SDK、rclone 和 WinFsp 安装包，无需预先安装 .NET SDK。首次构建需要网络连接。
+构建脚本会下载并校验所需的 .NET SDK、rclone、WinFsp 和 Inno Setup，无需预先安装 .NET SDK。首次构建需要网络连接。仅需便携包时，可将 `-Installer` 改为 `-Package`。
 
-输出目录为 `dist/PanBridge/`，便携包为 `dist/PanBridge-<版本>-win-x64.zip`。分发包不需要另行安装 .NET 运行时。
+输出目录为 `dist/PanBridge/`，安装包为 `dist/PanBridge-<版本>-Setup-x64.exe`，便携包为 `dist/PanBridge-<版本>-win-x64.zip`。分发包不需要另行安装 .NET 运行时。
 
 代码结构、依赖版本和测试方法见[开发文档](docs/development.md)。版本变更见[更新记录](CHANGELOG.md)。
 

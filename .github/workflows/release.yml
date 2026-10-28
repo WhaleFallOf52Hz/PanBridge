@@ -1,0 +1,55 @@
+name: Windows release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check version
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content src/PanBridge/PanBridge.csproj
+          $version = $project.Project.PropertyGroup.Version
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") { throw 'Tag and application version do not match.' }
+          "PANBRIDGE_VERSION=$version" >> $env:GITHUB_ENV
+      - name: Build portable package and EXE installer
+        shell: powershell
+        run: .\scripts\build.ps1 -Installer
+      - name: Test installed application
+        shell: pwsh
+        run: |
+          $destination = Join-Path $env:RUNNER_TEMP 'PanBridge-install-test'
+          $setup = (Resolve-Path "dist/PanBridge-$env:PANBRIDGE_VERSION-Setup-x64.exe").Path
+          $process = Start-Process $setup -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-','/TASKS=""',('/DIR="' + $destination + '"')) -WindowStyle Hidden -PassThru -Wait
+          if ($process.ExitCode -ne 0) { throw 'Installer smoke test failed.' }
+          $test = Start-Process (Join-Path $destination 'PanBridge.exe') -ArgumentList '--self-test' -WindowStyle Hidden -PassThru -Wait
+          if ($test.ExitCode -ne 0) { Get-Content (Join-Path $destination 'self-test.json'); throw 'Installed application self-test failed.' }
+      - name: Create checksums
+        shell: pwsh
+        run: |
+          $files = @("dist/PanBridge-$env:PANBRIDGE_VERSION-Setup-x64.exe", "dist/PanBridge-$env:PANBRIDGE_VERSION-win-x64.zip")
+          $lines = $files | ForEach-Object { $hash = Get-FileHash $_ -Algorithm SHA256; "$($hash.Hash.ToLower())  $([IO.Path]::GetFileName($_))" }
+          $lines | Set-Content dist/SHA256SUMS.txt -Encoding utf8NoBOM
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = "v$env:PANBRIDGE_VERSION"
+          $assets = @("dist/PanBridge-$env:PANBRIDGE_VERSION-Setup-x64.exe", "dist/PanBridge-$env:PANBRIDGE_VERSION-win-x64.zip", 'dist/SHA256SUMS.txt')
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag @assets --clobber --repo $env:GITHUB_REPOSITORY
+          } else {
+            gh release create $tag @assets --verify-tag --title "PanBridge $env:PANBRIDGE_VERSION" --notes-file "docs/releases/$tag.md" --repo $env:GITHUB_REPOSITORY
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }

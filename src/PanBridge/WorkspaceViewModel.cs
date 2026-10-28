@@ -20,6 +20,8 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly TboxBackend backend = new();
     private readonly MountManager mount = new();
+    private readonly StartupRegistration startup = new();
+    private StartupState startupState;
     private readonly Func<TboxBackend, AuthSession?, Task<AuthSession?>> login;
     private readonly Func<Task> clearBrowser;
     private readonly Action<string> saveReport;
@@ -57,6 +59,7 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
     public UiCommand ApplyCacheCommand { get; }
     public UiCommand DefaultCacheCommand { get; }
     public UiCommand OpenCacheCommand { get; }
+    public UiCommand WindowsStartupCommand { get; }
     public WorkspaceViewModel(Func<TboxBackend, AuthSession?, Task<AuthSession?>> login, Func<Task> clearBrowser, Action<string> saveReport, Func<string, string?>? chooseCacheFolder = null)
     {
         this.login = login; this.clearBrowser = clearBrowser; this.saveReport = saveReport;
@@ -67,6 +70,7 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
         cacheLimitGiBText = CacheStorage.FormatGiB(settings.CacheMaxBytes);
         mount.ConfigureCache(new(cacheDirectoryText, settings.CacheMaxBytes));
         selectedAccess = settings.Access; RefreshDrives();
+        startupState = startup.ReadState();
         UiCommand Command(Action action, Func<bool>? can = null) { var command = new UiCommand(action, can); commands.Add(command); return command; }
         PrimaryCommand = Command(async () => { if (IsMounted) OpenDrive(); else if (session is null) await LoginAsync(); else await MountAsync(); }, () => !busy);
         LoginCommand = Command(async () => await LoginAsync(), () => !busy);
@@ -90,6 +94,7 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
         DataCommand = Command(() => OpenPath(AppPaths.Data), () => !busy);
         LicensesCommand = Command(() => OpenPath(Path.Combine(AppPaths.Root, "THIRD-PARTY-NOTICES.txt")), () => !busy);
         RefreshDrivesCommand = Command(() => { RefreshDrives(); Notify(); }, () => !busy);
+        WindowsStartupCommand = Command(() => OpenPath("ms-settings:startupapps"));
         BrowseCacheCommand = Command(() =>
         {
             try { string? directory = this.chooseCacheFolder?.Invoke(CacheDirectoryText); if (directory is not null) CacheDirectoryText = directory; }
@@ -144,6 +149,39 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
     public string? SelectedDrive { get => selectedDrive; set { selectedDrive = value; Notify(); } }
     public DriveAccess SelectedAccess { get => selectedAccess; set { selectedAccess = value; Notify(); } }
     public bool AutoMount { get => settings.AutoMount; set => SavePreference(settings with { AutoMount = value }); }
+    public bool StartWithWindows
+    {
+        get => startupState == StartupState.Enabled;
+        set
+        {
+            if (busy || value == StartWithWindows) return;
+            try
+            {
+                if (value) startup.Enable(); else startup.Disable();
+                startupState = startup.ReadState(); hasError = false;
+                if (startupState == StartupState.DisabledByWindows)
+                {
+                    message = "Windows 已禁用此启动项，请在系统启动应用设置中重新启用。";
+                    OpenPath("ms-settings:startupapps");
+                }
+                else message = value ? "已添加到 Windows 启动应用，登录时在托盘运行。" : "已移除 Windows 启动项。";
+                Notify();
+            }
+            catch (Exception ex) { ShowError(ex); }
+        }
+    }
+    public string WindowsStartupStatus => startupState switch
+    {
+        StartupState.Enabled => "已启用 · Windows 登录后在托盘运行",
+        StartupState.DisabledByWindows => "已被 Windows 禁用 · 可在系统启动应用中重新启用",
+        StartupState.DifferentPath => "启动项指向另一份交云桥 · 重新勾选可切换到当前程序",
+        _ => "未添加到 Windows 启动应用"
+    };
+    public void RefreshStartupStatus()
+    {
+        var state = startup.ReadState();
+        if (state != startupState) { startupState = state; Notify(); }
+    }
     public bool OpenAfterMount { get => settings.OpenAfterMount; set => SavePreference(settings with { OpenAfterMount = value }); }
     public bool ShowTrayHint { get => settings.ShowTrayHint; set => SavePreference(settings with { ShowTrayHint = value }); }
     public string VersionLabel => "版本 " + ProductInfo.Version + " · Windows x64";
@@ -174,14 +212,14 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
     public bool HasCacheError => CacheValidation.Length > 0;
     public string CacheSummary => $"当前缓存上限 {CacheStorage.FormatGiB(settings.CacheMaxBytes)} GiB";
     public string CacheApplyHint => CacheHasChanges ? "有未应用的缓存更改。已连接时会等待上传结束，再自动重连。" : "缓存设置已保存。";
-    public async Task InitializeAsync() => await RunAsync("正在恢复登录", async () =>
+    public async Task InitializeAsync(bool background = false) => await RunAsync("正在恢复登录", async () =>
     {
         WriteState("starting");
         session = SessionVault.Load();
         if (session is null) { Message = "欢迎使用交云桥。先登录交大云盘，再连接本地盘符。"; WriteState("logged_out"); return; }
         await backend.SetAccessAsync(settings.Access); await ValidateAsync();
         Message = "已恢复登录，可以连接云盘。"; WriteState();
-        if (settings.AutoMount && MountManager.DriverInstalled) await MountCoreAsync();
+        if (settings.AutoMount && MountManager.DriverInstalled) await MountCoreAsync(!background);
     });
     private async Task<int> ValidateAsync()
     {
@@ -197,15 +235,15 @@ public sealed class WorkspaceViewModel : INotifyPropertyChanged, IDisposable
         SessionVault.Save(result); session = result; await ValidateAsync(); Message = "登录成功，凭证已加密保存。"; WriteState();
         if (settings.AutoMount && MountManager.DriverInstalled) await MountCoreAsync();
     });
-    public async Task MountAsync() => await RunAsync("正在连接云盘", MountCoreAsync);
-    private async Task MountCoreAsync()
+    public async Task MountAsync() => await RunAsync("正在连接云盘", () => MountCoreAsync());
+    private async Task MountCoreAsync(bool allowOpen = true)
     {
         if (session is null || IsMounted) return;
         await SaveMountSettingsAsync(); await ValidateAsync();
         mount.ConfigureCache(CacheStorage.FromSettings(settings));
         await mount.MountAsync(backend.Address!, session.UserToken, settings.DriveLetter, settings.Access);
         transfer = "可在连接检测中查看上传队列"; Message = $"已连接 {mount.Drive}，当前为{AccessLabel}。"; WriteState();
-        if (settings.OpenAfterMount) OpenDrive();
+        if (settings.OpenAfterMount && allowOpen) OpenDrive();
     }
     public async Task DisconnectAsync() => await RunAsync("正在等待上传并断开", async () =>
     {
