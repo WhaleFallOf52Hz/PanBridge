@@ -10,6 +10,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: windows-release
+  cancel-in-progress: true
+
 jobs:
   release:
     runs-on: windows-latest
@@ -31,9 +35,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'The version tag must be pushed before publishing.' }
           git checkout --detach $tag
           if ($LASTEXITCODE -ne 0) { throw 'Could not check out the release source.' }
+      - name: Prepare verified build dependencies
+        shell: pwsh
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          .\scripts\bootstrap.ps1 -Installer
       - name: Build portable package and EXE installer
-        shell: powershell
-        run: .\scripts\build.ps1 -Installer
+        shell: pwsh
+        run: .\scripts\build.ps1 -Installer -SkipBootstrap
       - name: Test installed application
         shell: pwsh
         run: |
