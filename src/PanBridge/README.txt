@@ -1,4 +1,4 @@
-交云桥（PanBridge）0.3.0 — Windows x64
+交云桥（PanBridge）0.3.1 — Windows x64
 
 完整解压后，双击 PanBridge.exe，点击“登录交大云盘”打开交大官方登录页；在页面中完成账号登录与验证码，客户端会自动获取 USER_TOKEN 并验证目录访问，无需打开开发者工具复制 Cookie。
 
@@ -31,4 +31,4 @@ data/status.json 仅记录运行阶段、目录数量、盘符和错误类型，
 
 内置自检：PanBridge.exe --self-test。结果写入 self-test.json，只使用虚构凭证，不读取个人登录数据。
 
-可选真实集成检查：PanBridge.exe --integration-test。此命令会使用当前保存的登录凭证，临时挂载一个空闲盘符，在云盘创建随机命名的 PanBridge-check- 目录，验证上传、修改、重命名、删除并清理自身创建的文件，结果写入 integration-test.json。
+可选真实集成检查：PanBridge.exe --integration-test。此命令会使用当前保存的登录凭证，临时挂载一个空闲盘符，在云盘创建随机命名的 PanBridge-check- 目录，验证上传、修改、文件重命名、文件夹重命名、删除并清理自身创建的文件，结果写入 integration-test.json。

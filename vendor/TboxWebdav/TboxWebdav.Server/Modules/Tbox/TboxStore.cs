@@ -141,12 +141,24 @@ namespace TboxWebdav.Server.Modules.Tbox
 
         public async Task<DavStatusCode> DirectMoveItemAsync(string srcItemPath, string destItemPath)
         {
-            var res = _tbox.CopyOrMoveFile(srcItemPath, destItemPath, true);
+            // The SMH API has separate move endpoints for files and
+            // directories. A WebDAV MOVE does not carry the resource type, so
+            // resolve it before issuing the operation.
+            var item = _tbox.GetItemInfo(srcItemPath);
+            if (!item.Success || item.Result is null)
+            {
+                _logger.LogError($"Move source lookup failed: {item.Message}");
+                return IsNotFound(item.Message) ? DavStatusCode.NotFound : DavStatusCode.InternalServerError;
+            }
+
+            var res = item.Result.Type == "dir"
+                ? _tbox.MoveDirectory(srcItemPath, destItemPath)
+                : _tbox.CopyOrMoveFile(srcItemPath, destItemPath, true);
             if (res.Success)
             {
                 return DavStatusCode.Ok;
             }
-            else if (res.Message.Contains("SourceFileNotFound"))
+            else if (IsNotFound(res.Message))
             {
                 return DavStatusCode.NotFound;
             }
@@ -156,5 +168,10 @@ namespace TboxWebdav.Server.Modules.Tbox
                 return DavStatusCode.InternalServerError;
             }
         }
+
+        private static bool IsNotFound(string? message) =>
+            !string.IsNullOrWhiteSpace(message) &&
+            (message.Contains("NotFound", StringComparison.OrdinalIgnoreCase) ||
+             message.Contains("not found", StringComparison.OrdinalIgnoreCase));
     }
 }

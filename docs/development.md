@@ -70,7 +70,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-ui.ps1 -RunDiag
 dist\PanBridge\PanBridge.exe --integration-test
 ```
 
-此测试会临时挂载一个空闲盘符，在云盘创建随机命名的专用目录，验证上传、覆盖修改、重命名、删除和正常断开，最后清理自身创建的文件。它会实际写入云盘，请在允许进行读写测试的账号中运行。不会修改已有文件，结果写入程序目录的 `integration-test.json`。
+此测试会临时挂载一个空闲盘符，在云盘创建随机命名的专用目录，验证上传、覆盖修改、文件重命名、文件夹重命名、删除和正常断开，最后清理自身创建的文件。它会实际写入云盘，请在允许进行读写测试的账号中运行。不会修改已有文件，结果写入程序目录的 `integration-test.json`。
 
 ### 盘符生命周期测试
 

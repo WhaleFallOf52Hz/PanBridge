@@ -16,6 +16,7 @@ public static class IntegrationTest
         var checks = new List<string>();
         string stage = "load_session";
         string folder = "PanBridge-check-" + Guid.NewGuid().ToString("N")[..12];
+        string remoteFolder = folder;
         string? localFolder = null;
         using var backend = new TboxBackend();
         using var mount = new MountManager(Path.Combine(AppPaths.Data, "integration-cache-" + Guid.NewGuid().ToString("N")[..8]), "PanBridge-Test");
@@ -42,7 +43,7 @@ public static class IntegrationTest
             await mount.WaitForUploadsAsync();
             using var client = new HttpClient(new HttpClientHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(30) };
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes("local:" + session.UserToken)));
-            async Task<string> ReadCloud(string name) => await client.GetStringAsync(new Uri(backend.Address!, folder + "/" + name));
+            async Task<string> ReadCloud(string name) => await client.GetStringAsync(new Uri(backend.Address!, remoteFolder + "/" + name));
             if (await ReadCloud("probe.txt") != "PanBridge upload check") throw new IOException("Cloud upload did not match.");
             checks.Add("upload_verified_from_cloud");
             stage = "modify";
@@ -61,11 +62,20 @@ public static class IntegrationTest
             await mount.WaitForUploadsAsync();
             if (await ReadCloud("renamed.txt") != "PanBridge replaced check") throw new IOException("Cloud rename did not match.");
             checks.Add("rename_verified_from_cloud");
+            stage = "rename_directory";
+            string renamedFolder = localFolder + "-renamed";
+            Directory.Move(localFolder, renamedFolder);
+            localFolder = renamedFolder;
+            remoteFolder = folder + "-renamed";
+            renamed = Path.Combine(localFolder, "renamed.txt");
+            await mount.WaitForUploadsAsync();
+            if (await ReadCloud("renamed.txt") != "PanBridge replaced check") throw new IOException("Cloud directory rename did not match.");
+            checks.Add("directory_rename_verified_from_cloud");
             stage = "delete";
             File.Delete(renamed);
             Directory.Delete(localFolder);
             cleanup = false;
-            using var deleted = await client.GetAsync(new Uri(backend.Address!, folder + "/renamed.txt"));
+            using var deleted = await client.GetAsync(new Uri(backend.Address!, remoteFolder + "/renamed.txt"));
             if (deleted.StatusCode is not (HttpStatusCode.NotFound or HttpStatusCode.Gone)) throw new IOException("Deleted file still exists remotely.");
             checks.Add("delete_verified_from_cloud");
             stage = "disconnect";

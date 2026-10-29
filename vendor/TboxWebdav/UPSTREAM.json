@@ -5,6 +5,7 @@
   "license": "GPL-2.0",
   "localChanges": [
     "Version download cache keys by account, path, ETag, CRC, size and modification time.",
-    "Reject truncated cached blocks instead of entering a read loop without progress."
+    "Reject truncated cached blocks instead of entering a read loop without progress.",
+    "Route WebDAV directory MOVE requests to the SMH directory move API and serialize move bodies safely."
   ]
 }

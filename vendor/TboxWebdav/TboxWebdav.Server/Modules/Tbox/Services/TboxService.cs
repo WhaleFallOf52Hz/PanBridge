@@ -779,6 +779,19 @@ namespace TboxWebdav.Server.Modules.Tbox.Services
 
         public CommonResult<TboxMoveFileDto> CopyOrMoveFile(string sourcePath, string destinationPath, bool isMove = false)
         {
+            return CopyOrMoveItem("file", sourcePath, destinationPath, isMove);
+        }
+
+        // SMH exposes directory moves through /api/v1/directory. Sending a
+        // directory to the file endpoint is rejected by the service and is
+        // surfaced by WebDAV clients as ERROR_IO_DEVICE (0x8007045D).
+        public CommonResult<TboxMoveFileDto> MoveDirectory(string sourcePath, string destinationPath)
+        {
+            return CopyOrMoveItem("directory", sourcePath, destinationPath, true);
+        }
+
+        private CommonResult<TboxMoveFileDto> CopyOrMoveItem(string resource, string sourcePath, string destinationPath, bool isMove)
+        {
             try
             {
                 var cred = CheckLogined();
@@ -786,11 +799,11 @@ namespace TboxWebdav.Server.Modules.Tbox.Services
                 query.Add("conflict_resolution_strategy", "ask");
                 query.Add("access_token", cred.AccessToken);
 
-                HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Put, baseUrl + $"/api/v1/file/{cred.LibraryId}/{cred.SpaceId}/{destinationPath.UrlEncodeByParts()}" + UriHelper.BuildQuery(query));
+                string endpoint = resource == "directory" ? "directory" : "file";
+                HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Put, baseUrl + $"/api/v1/{endpoint}/{cred.LibraryId}/{cred.SpaceId}/{destinationPath.UrlEncodeByParts()}" + UriHelper.BuildQuery(query));
 
-                req.Content = new StringContent($$"""
-                    {"{{(isMove ? "from" : "copyFrom")}}":"{{sourcePath}}"}
-                    """);
+                string operation = isMove ? "from" : "copyFrom";
+                req.Content = JsonContent.Create(new Dictionary<string, string> { [operation] = sourcePath });
                 req.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
                 var res = _client.SendAsync(req).GetAwaiter().GetResult();
@@ -809,7 +822,7 @@ namespace TboxWebdav.Server.Modules.Tbox.Services
                     }
                 }
                 var body = res.Content.ReadAsStringAsync().Result;
-                var json = JsonConvert.DeserializeObject<TboxMoveFileDto>(body);
+                var json = string.IsNullOrWhiteSpace(body) ? null : JsonConvert.DeserializeObject<TboxMoveFileDto>(body);
 
                 return new(true, "", json);
             }
