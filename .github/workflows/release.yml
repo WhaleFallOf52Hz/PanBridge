@@ -31,7 +31,10 @@ jobs:
         shell: pwsh
         run: |
           $tag = "v$env:PANBRIDGE_VERSION"
-          git fetch --depth=1 origin "refs/tags/${tag}:refs/tags/${tag}"
+          # A tag-triggered checkout may already have a local tag with this
+          # name. Force-refresh it so both tag and workflow-dispatch runs use
+          # the immutable remote tag consistently.
+          git fetch --force --depth=1 origin "refs/tags/${tag}:refs/tags/${tag}"
           if ($LASTEXITCODE -ne 0) { throw 'The version tag must be pushed before publishing.' }
           git checkout --detach $tag
           if ($LASTEXITCODE -ne 0) { throw 'Could not check out the release source.' }
