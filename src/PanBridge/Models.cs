@@ -17,7 +17,8 @@ public static class AppPaths
     public static string Browser => Path.Combine(Data, "browser-profile");
     public static string Vault => Path.Combine(Data, "session.dpapi");
     public static string Runtime => Path.Combine(Root, "runtime");
-    public static string Tbox => Path.Combine(Runtime, "tbox", "TboxWebdav.Server.AspNetCore.exe");
+    public static string Dotnet => Path.Combine(Runtime, "dotnet", "dotnet.exe");
+    public static string Tbox => Path.Combine(Runtime, "tbox", "TboxWebdav.Server.AspNetCore.dll");
     public static string Rclone => Path.Combine(Runtime, "rclone", "rclone.exe");
     public static string Installer => Path.Combine(Runtime, "winfsp.msi");
     public static string Status => Path.Combine(Data, "status.json");

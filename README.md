@@ -44,11 +44,11 @@
 
 学校登录状态过期后，需要重新完成官方登录。可在设置中清除本地登录数据。
 
-更新程序前，请先从托盘退出。保留原 `data/` 目录，可在同一 Windows 用户环境中继续使用已有登录和设置。
+更新程序前，请先从托盘退出。安装版可直接运行新版安装包，程序会保留原 `data/` 并清理已知的旧版冗余组件。便携版请完整解压到新目录，再迁移原 `data/`，可在同一 Windows 用户环境中继续使用已有登录和设置。
 
 ## 从源码构建
 
-在 Windows 上安装 Git，打开 PowerShell：
+在 Windows 上安装 Git 和 MinGW-w64（`gcc`、`windres` 可在 PATH 中找到），打开 PowerShell：
 
 ```powershell
 git clone https://github.com/WhaleFallOf52Hz/PanBridge.git
@@ -56,9 +56,9 @@ cd PanBridge
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 -Installer
 ```
 
-构建脚本会下载并校验所需的 .NET SDK、rclone、WinFsp 和 Inno Setup，无需预先安装 .NET SDK。首次构建需要网络连接。仅需便携包时，可将 `-Installer` 改为 `-Package`。
+构建脚本会下载并校验 .NET/Go SDK、rclone 源码、WinFsp 和 Inno Setup，无需预先安装 .NET 或 Go。首次构建需要网络连接。仅需便携包时，可将 `-Installer` 改为 `-Package`。
 
-输出目录为 `dist/PanBridge/`，安装包为 `dist/PanBridge-<版本>-Setup-x64.exe`，便携包为 `dist/PanBridge-<版本>-win-x64.zip`。分发包不需要另行安装 .NET 运行时。
+输出目录为 `dist/PanBridge-<版本>/`，安装包为 `dist/PanBridge-<版本>-Setup-x64.exe`，便携包为 `dist/PanBridge-<版本>-win-x64.zip`。主程序和 Tbox 共用应用自带的 .NET 运行时，分发包不需要另行安装 .NET。
 
 代码结构、依赖版本和测试方法见[开发文档](docs/development.md)。版本变更见[更新记录](CHANGELOG.md)。
 

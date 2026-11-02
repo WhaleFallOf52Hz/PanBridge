@@ -3,8 +3,6 @@ name: Windows release
 on:
   push:
     tags: ['v*']
-    branches: ['main']
-    paths: ['.github/workflows/release.yml']
   workflow_dispatch:
 
 permissions:
@@ -43,6 +41,14 @@ jobs:
         run: |
           $ProgressPreference = 'SilentlyContinue'
           .\scripts\bootstrap.ps1 -Installer
+      - name: Reuse Go build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build-tools/go-cache
+            .build-tools/go-build-cache
+            .build-tools/rclone-lite
+          key: windows-rclone-${{ hashFiles('dependencies.json', 'src/rclone/**', 'scripts/build-rclone.ps1') }}
       - name: Build portable package and EXE installer
         shell: pwsh
         run: .\scripts\build.ps1 -Installer -SkipBootstrap
@@ -51,10 +57,17 @@ jobs:
         run: |
           $destination = Join-Path $env:RUNNER_TEMP 'PanBridge-install-test'
           $setup = (Resolve-Path "dist/PanBridge-$env:PANBRIDGE_VERSION-Setup-x64.exe").Path
-          $process = Start-Process $setup -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-','/TASKS=""',('/DIR="' + $destination + '"')) -WindowStyle Hidden -PassThru -Wait
-          if ($process.ExitCode -ne 0) { throw 'Installer smoke test failed.' }
-          $test = Start-Process (Join-Path $destination 'PanBridge.exe') -ArgumentList '--self-test' -WindowStyle Hidden -PassThru -Wait
-          if ($test.ExitCode -ne 0) { Get-Content (Join-Path $destination 'self-test.json'); throw 'Installed application self-test failed.' }
+          .\scripts\test-installer.ps1 -Setup $setup -Destination $destination
+          $info = Get-Content (Join-Path $destination 'package-info.json') -Raw | ConvertFrom-Json
+          $info | ConvertTo-Json -Depth 5 | Set-Content dist/package-info.json
+      - name: Preserve size and test reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-verification
+          path: |
+            dist/package-info.json
+            ${{ runner.temp }}/PanBridge-install-test/package-test.json
+            ${{ runner.temp }}/PanBridge-install-test/installer-test.json
       - name: Create checksums
         shell: pwsh
         run: |
@@ -67,7 +80,7 @@ jobs:
         shell: pwsh
         run: |
           $tag = "v$env:PANBRIDGE_VERSION"
-          $assets = @("dist/PanBridge-$env:PANBRIDGE_VERSION-Setup-x64.exe", "dist/PanBridge-$env:PANBRIDGE_VERSION-win-x64.zip", 'dist/SHA256SUMS.txt')
+          $assets = @("dist/PanBridge-$env:PANBRIDGE_VERSION-Setup-x64.exe", "dist/PanBridge-$env:PANBRIDGE_VERSION-win-x64.zip", 'dist/SHA256SUMS.txt', 'dist/package-info.json')
           gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag @assets --clobber --repo $env:GITHUB_REPOSITORY

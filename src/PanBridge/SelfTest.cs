@@ -10,6 +10,10 @@ public static class SelfTest
 {
     public static void Run()
     {
+        string corePath = typeof(object).Assembly.Location;
+        string privateCore = Path.Combine(AppPaths.Runtime, "dotnet", "shared", "Microsoft.NETCore.App") + Path.DirectorySeparatorChar;
+        bool privateRuntimeVerified = Path.GetFullPath(corePath).StartsWith(privateCore, StringComparison.OrdinalIgnoreCase);
+        if (File.Exists(AppPaths.Dotnet) && !privateRuntimeVerified) throw new Exception("Packaged app did not load its private shared runtime.");
         string fake = new('a', 128);
         var cookie = new SavedCookie("USER_TOKEN", fake, "pan.sjtu.edu.cn", "/", true, true, false, DateTime.UtcNow.AddHours(1), 0);
         if (SessionRules.SelectToken([cookie])?.Value != fake) throw new Exception("Current cookie name not recognized.");
@@ -57,6 +61,6 @@ public static class SelfTest
         using (var ico = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/PanBridge.ico")).Stream)
         using (var icon = new System.Drawing.Icon(ico, new System.Drawing.Size(16, 16)))
             if (icon.Width != 16 || icon.Height != 16) throw new Exception("Small tray icon could not be decoded.");
-        File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "self-test.json"), JsonSerializer.Serialize(new { Success = true, Checks = new[] { "cookie_names", "cookie_expiry", "cookie_domain", "dpapi_roundtrip", "no_plaintext_token", "webdav_xml", "invalid_xml_rejected", "settings_upgrade", "diagnostic_severity", "upload_status", "command_availability", "explicit_permission_apply", "cache_legacy_defaults", "cache_limit_validation", "cache_path_validation", "cache_pending_upload_guard", "cache_metadata_failure_guard", "cache_write_probe", "cache_command_validation", "startup_registration", "windows_disable_respected", "startup_path_quoting", "app_icon_resources", "small_tray_icon" } }, new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "self-test.json"), JsonSerializer.Serialize(new { Success = true, PrivateRuntimeVerified = privateRuntimeVerified, Checks = new[] { "cookie_names", "cookie_expiry", "cookie_domain", "dpapi_roundtrip", "no_plaintext_token", "webdav_xml", "invalid_xml_rejected", "settings_upgrade", "diagnostic_severity", "upload_status", "command_availability", "explicit_permission_apply", "cache_legacy_defaults", "cache_limit_validation", "cache_path_validation", "cache_pending_upload_guard", "cache_metadata_failure_guard", "cache_write_probe", "cache_command_validation", "startup_registration", "windows_disable_respected", "startup_path_quoting", "app_icon_resources", "small_tray_icon" } }, new JsonSerializerOptions { WriteIndented = true }));
     }
 }

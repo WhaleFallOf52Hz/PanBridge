@@ -25,6 +25,7 @@ public sealed class TboxBackend : IDisposable
     {
         if (process is { HasExited: false }) return;
         if (!File.Exists(AppPaths.Tbox)) throw new CloudAccessException("缺少 Tbox 组件，请完整解压客户端后运行。");
+        if (!File.Exists(AppPaths.Dotnet)) throw new CloudAccessException("应用运行文件缺失，请重新安装交云桥。");
         using (var https = new HttpClient { Timeout = TimeSpan.FromSeconds(15) })
         using (var response = await https.GetAsync("https://pan.sjtu.edu.cn/", HttpCompletionOption.ResponseHeadersRead)) { }
         var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -32,11 +33,12 @@ public sealed class TboxBackend : IDisposable
         int port = ((IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         Address = new Uri($"http://127.0.0.1:{port}/");
-        var start = new ProcessStartInfo(AppPaths.Tbox)
+        var start = new ProcessStartInfo(AppPaths.Dotnet)
         {
             WorkingDirectory = Path.GetDirectoryName(AppPaths.Tbox)!, UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardOutput = true, RedirectStandardError = true
         };
+        start.ArgumentList.Add(AppPaths.Tbox);
         foreach (var arg in new[] { "--host", "127.0.0.1", "--port", port.ToString(), "--auth", "UserToken", "--access", access.ToString() }) start.ArgumentList.Add(arg);
         start.Environment["Logging__LogLevel__Default"] = "Warning";
         start.Environment["Logging__LogLevel__Microsoft.AspNetCore"] = "Warning";

@@ -1,7 +1,10 @@
 param([string]$Application, [switch]$RunDiagnostics)
 $ErrorActionPreference = 'Stop'
 $repository = Split-Path $PSScriptRoot
-if (-not $Application) { $Application = Join-Path $repository 'dist\PanBridge\PanBridge.exe' }
+if (-not $Application) {
+    [xml]$project = Get-Content (Join-Path $repository 'src\PanBridge\PanBridge.csproj')
+    $Application = Join-Path $repository ('dist\PanBridge-' + $project.Project.PropertyGroup.Version + '\PanBridge.exe')
+}
 $Application = (Resolve-Path -LiteralPath $Application).Path
 Add-Type -AssemblyName UIAutomationClient
 $client = Get-Process -Name PanBridge -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $Application } | Select-Object -First 1

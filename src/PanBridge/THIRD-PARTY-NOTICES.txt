@@ -1,13 +1,13 @@
-PanBridge prototype — third-party components
+PanBridge — third-party components
 
 TboxWebdav v1.0.1 (separate process)
 https://github.com/1357310795/TboxWebdav
 GNU GPL version 2. License bundled in runtime/tbox/LICENSE.txt.
 Source is available in the vendor/TboxWebdav directory; published tag v1.0.1 corresponds to commit 4537e22adf241158783fe26661b8081f9bc45e94. This bundle includes a local patch to version the download cache by file ETag, CRC, size and modification time, and reject truncated cached blocks. Modified source is included in runtime/tbox/source.zip.
 
-rclone v1.75.2 (separate process)
+rclone v1.75.2-panbridge (separate process, minimal build)
 https://github.com/rclone/rclone
-MIT license. Distribution documentation/license files accompany runtime/rclone.
+MIT license. License and build-profile notice accompany runtime/rclone. The pinned upstream VFS/cache and cmount code are unchanged; src/rclone/main.go registers only the required entry points. Source archive checksums and Go toolchain are pinned in dependencies.json; build instructions are in scripts/build-rclone.ps1.
 
 WinFsp 2.1 installer
 https://github.com/winfsp/winfsp/releases/tag/v2.1
@@ -17,6 +17,6 @@ Microsoft WebView2 SDK
 https://www.nuget.org/packages/Microsoft.Web.WebView2/
 Microsoft licensing terms apply. WebView2 Runtime is installed separately on Windows and is not redistributed in this package.
 
-Microsoft .NET 8 Windows Desktop runtime and System.Security.Cryptography.ProtectedData
+Microsoft .NET 8 shared runtime (Core, Windows Desktop, ASP.NET Core) and System.Security.Cryptography.ProtectedData
 https://github.com/dotnet/runtime
-Runtime license and third-party notices are included in the self-contained .NET distribution.
+One application-private shared runtime is included in runtime/dotnet and used by the main app and the separate Tbox process. Runtime license and third-party notices accompany that directory. Non-Simplified-Chinese satellite resources are omitted; executable framework assemblies are not trimmed.

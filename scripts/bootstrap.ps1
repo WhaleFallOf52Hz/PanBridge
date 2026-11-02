@@ -25,9 +25,13 @@ $sdkArchive = Get-VerifiedArchive $manifest.dotnet
 if (-not (Test-Path -LiteralPath (Join-Path $tools 'dotnet\dotnet.exe'))) {
     Expand-Archive -LiteralPath $sdkArchive -DestinationPath (Join-Path $tools 'dotnet') -Force
 }
-$rcloneArchive = Get-VerifiedArchive $manifest.rclone
-if (-not (Get-ChildItem -LiteralPath (Join-Path $tools 'rclone') -Filter rclone.exe -Recurse -ErrorAction SilentlyContinue)) {
-    Expand-Archive -LiteralPath $rcloneArchive -DestinationPath (Join-Path $tools 'rclone') -Force
+$goArchive = Get-VerifiedArchive $manifest.go
+if (-not (Test-Path -LiteralPath (Join-Path $tools 'go-sdk\go\bin\go.exe'))) {
+    Expand-Archive -LiteralPath $goArchive -DestinationPath (Join-Path $tools 'go-sdk') -Force
+}
+$rcloneSource = Get-VerifiedArchive $manifest.rcloneSource
+if (-not (Test-Path -LiteralPath (Join-Path $tools ('rclone-source\rclone-' + $manifest.rclone.version + '\go.mod')))) {
+    Expand-Archive -LiteralPath $rcloneSource -DestinationPath (Join-Path $tools 'rclone-source') -Force
 }
 Get-VerifiedArchive $manifest.winfsp | Out-Null
 if ($Installer) {
@@ -40,4 +44,4 @@ if ($Installer) {
         if ($install.ExitCode -ne 0) { throw 'Inno Setup compiler installation failed.' }
     }
 }
-Write-Output 'Verified SDK, rclone and WinFsp dependencies are ready.'
+Write-Output 'Verified .NET/Go SDKs, rclone source and WinFsp dependencies are ready.'

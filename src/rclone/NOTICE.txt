@@ -1,0 +1,10 @@
+PanBridge rclone profile
+
+Upstream: https://github.com/rclone/rclone/tree/v1.75.2
+License: MIT (LICENSE.txt)
+
+This build replaces only the main entry point to register the local and WebDAV
+backends and the Windows cmount, obscure and version commands. The upstream
+VFS, disk cache, remote-control API and filesystem implementation are retained.
+Build entry and instructions: src/rclone/main.go and scripts/build-rclone.ps1
+in https://github.com/WhaleFallOf52Hz/PanBridge

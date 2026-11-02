@@ -42,7 +42,9 @@ Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: 
 Name: "winfsp"; Description: "安装挂载组件 WinFsp（仅缺失时安装，需要管理员权限）"; GroupDescription: "组件："; Check: not WinFspInstalled
 
 [Files]
-Source: "{#PayloadDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+#include PayloadFiles
+Source: "{#PayloadDir}\package-files.sha256"; DestName: "current-files.sha256"; Flags: dontcopy
+Source: "{#RepositoryDir}\installer\legacy-v0.3.1.sha256"; Flags: dontcopy
 
 [Icons]
 Name: "{group}\交云桥"; Filename: "{app}\PanBridge.exe"; WorkingDir: "{app}"
@@ -56,6 +58,89 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Filename: "{app}\PanBridge.exe"; Description: "启动交云桥"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+var PreviousFiles, CurrentFiles: TArrayOfString;
+
+function GetFileAttributesW(Path: String): LongWord;
+external 'GetFileAttributesW@kernel32.dll stdcall';
+
+function SafePackagePath(RelativePath: String): Boolean;
+var Part, AbsolutePath, BasePath: String;
+begin
+  Result := False;
+  if (RelativePath = '') or (Pos('..', RelativePath) > 0) or (Pos(':', RelativePath) > 0) then Exit;
+  if (RelativePath[1] = '/') or (RelativePath[1] = '\') then Exit;
+  StringChangeEx(RelativePath, '/', '\', True);
+  Part := Lowercase(RelativePath);
+  if (Pos('data\', Part) = 1) or (Pos('cache\', Part) = 1) or (Pos('browser-profile\', Part) = 1) then Exit;
+  BasePath := ExpandConstant('{app}');
+  AbsolutePath := AddBackslash(BasePath) + RelativePath;
+  // Never follow a directory junction or symbolic link during cleanup/reuse.
+  while CompareText(AbsolutePath, BasePath) <> 0 do begin
+    if (GetFileAttributesW(AbsolutePath) and $400) <> 0 then
+      if FileExists(AbsolutePath) or DirExists(AbsolutePath) then Exit;
+    AbsolutePath := ExtractFileDir(AbsolutePath);
+    if Length(AbsolutePath) < Length(BasePath) then Exit;
+  end;
+  Result := (GetFileAttributesW(BasePath) and $400) = 0;
+end;
+
+function ShouldInstallFile(RelativePath, Hash: String): Boolean;
+var Path: String;
+begin
+  Result := True;
+  if not SafePackagePath(RelativePath) then Exit;
+  StringChangeEx(RelativePath, '/', '\', True);
+  Path := AddBackslash(ExpandConstant('{app}')) + RelativePath;
+  if FileExists(Path) then begin
+    try
+      Result := CompareText(GetSHA256OfFile(Path), Hash) <> 0;
+      if not Result then Log('Reusing unchanged component: ' + RelativePath);
+    except
+      Result := True;
+    end;
+  end;
+end;
+
+function StillPackaged(RelativePath: String): Boolean;
+var I: Integer;
+begin
+  Result := False;
+  for I := 0 to GetArrayLength(CurrentFiles) - 1 do
+    if CompareText(Copy(CurrentFiles[I], 67, Length(CurrentFiles[I])), RelativePath) = 0 then begin
+      Result := True; Exit;
+    end;
+end;
+
+procedure RemoveObsoletePackageFiles;
+var I: Integer; RelativePath, Hash, Path, ParentPath, BasePath: String;
+begin
+  BasePath := ExpandConstant('{app}');
+  for I := 0 to GetArrayLength(PreviousFiles) - 1 do begin
+    Hash := Copy(PreviousFiles[I], 1, 64);
+    RelativePath := Copy(PreviousFiles[I], 67, Length(PreviousFiles[I]));
+    if (Length(Hash) = 64) and SafePackagePath(RelativePath) and not StillPackaged(RelativePath) then begin
+      StringChangeEx(RelativePath, '/', '\', True);
+      Path := AddBackslash(BasePath) + RelativePath;
+      if FileExists(Path) then begin
+        try
+          // Preserve modified/unknown files and every user's data/cache path.
+          if CompareText(GetSHA256OfFile(Path), Hash) = 0 then
+            if DeleteFile(Path) then begin
+              Log('Removed obsolete package file: ' + RelativePath);
+              ParentPath := ExtractFileDir(Path);
+              while CompareText(ParentPath, BasePath) <> 0 do begin
+                if not RemoveDir(ParentPath) then Break;
+                ParentPath := ExtractFileDir(ParentPath);
+              end;
+            end;
+        except
+          Log('Keeping inaccessible obsolete file: ' + RelativePath);
+        end;
+      end;
+    end;
+  end;
+end;
+
 function WinFspInstalled: Boolean;
 begin
   Result := RegKeyExists(HKLM64, 'SOFTWARE\WinFsp') or RegKeyExists(HKLM32, 'SOFTWARE\WinFsp');
@@ -101,6 +186,16 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 var ExitCode: Integer;
 begin
+  if CurStep = ssInstall then begin
+    ExtractTemporaryFile('current-files.sha256');
+    if not LoadStringsFromFile(ExpandConstant('{tmp}\current-files.sha256'), CurrentFiles) then
+      RaiseException('Package manifest could not be loaded.');
+    if not LoadStringsFromFile(ExpandConstant('{app}\package-files.sha256'), PreviousFiles) then begin
+      ExtractTemporaryFile('legacy-v0.3.1.sha256');
+      LoadStringsFromFile(ExpandConstant('{tmp}\legacy-v0.3.1.sha256'), PreviousFiles);
+    end;
+  end;
+  if CurStep = ssPostInstall then RemoveObsoletePackageFiles;
   if (CurStep = ssPostInstall) and WizardIsTaskSelected('winfsp') and not WinFspInstalled then begin
     WizardForm.StatusLabel.Caption := '正在安装 WinFsp 挂载组件…';
     if not ShellExec('runas', ExpandConstant('{sys}\msiexec.exe'), '/i "' + ExpandConstant('{app}\runtime\winfsp.msi') + '" /qn /norestart', '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then
